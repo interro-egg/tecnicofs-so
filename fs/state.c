@@ -212,9 +212,6 @@ inode_t *inode_get(int inumber) {
  * Returns: SUCCESS or FAIL
  */
 int add_dir_entry(int inumber, int sub_inumber, char const *sub_name) {
-    dir_entry_t *dir_entry = NULL;
-    int *indirect_data_block = NULL;
-
     if (!valid_inumber(inumber) || !valid_inumber(sub_inumber)) {
         return -1;
     }
@@ -229,89 +226,23 @@ int add_dir_entry(int inumber, int sub_inumber, char const *sub_name) {
     }
 
     /* Locates the block containing the directory's entries */
-    for (int i = 0; i < NUM_DIRECT_BLOCKS; i++) {
+    dir_entry_t *dir_entry = (dir_entry_t *)data_block_get(
+        inode_table[inumber].i_direct_data_blocks[0]);
+    if (dir_entry == NULL) {
+        return -1;
+    }
 
-        if (inode_table[inumber].i_direct_data_blocks[i] == -1) {
-            int b = data_block_alloc();
-            if (b == -1) {
-                return -1;
-            }
-            inode_table[inumber].i_direct_data_blocks[i] = b;
-            inode_table[inumber].i_size += BLOCK_SIZE;
-            dir_entry = (dir_entry_t *)data_block_get(b);
-            for (size_t i = 0; i < MAX_DIR_ENTRIES; i++) {
-                dir_entry[i].d_inumber = -1;
-            }
-        } else {
-            dir_entry = (dir_entry_t *)data_block_get(
-                inode_table[inumber].i_direct_data_blocks[i]);
-        }
-        if (dir_entry == NULL) {
-            data_block_free(inode_table[inumber].i_direct_data_blocks[i]);
-            return -1;
-        }
-
-        /* Finds and fills the first empty entry */
-        for (size_t j = 0; j < MAX_DIR_ENTRIES; j++) {
-            if (dir_entry[j].d_inumber == -1) {
-                dir_entry[j].d_inumber = sub_inumber;
-                strncpy(dir_entry[j].d_name, sub_name, MAX_FILE_NAME - 1);
-                dir_entry[j].d_name[MAX_FILE_NAME - 1] = 0;
-                return 0;
-            }
+    /* Finds and fills the first empty entry */
+    for (size_t i = 0; i < MAX_DIR_ENTRIES; i++) {
+        if (dir_entry[i].d_inumber == -1) {
+            dir_entry[i].d_inumber = sub_inumber;
+            strncpy(dir_entry[i].d_name, sub_name, MAX_FILE_NAME - 1);
+            dir_entry[i].d_name[MAX_FILE_NAME - 1] = 0;
+            return 0;
         }
     }
 
-    // No free spots in direct data blocks
-
-    if (inode_table[inumber].i_indirect_data_block == -1) {
-        // Allocate indirect data block
-        int b = data_block_alloc();
-        if (b == -1) {
-            return -1;
-        }
-        inode_table[inumber].i_indirect_data_block = b;
-        indirect_data_block =
-            (int *)data_block_get(inode_table[inumber].i_indirect_data_block);
-        if (indirect_data_block == NULL) {
-            return -1;
-        }
-        for (int i = 0; i < NUM_INDIRECT_ENTRIES; i++) {
-            indirect_data_block[i] = -1;
-        }
-    } else {
-        indirect_data_block =
-            (int *)data_block_get(inode_table[inumber].i_indirect_data_block);
-    }
-    for (int i = 0; i < NUM_INDIRECT_ENTRIES; i++) {
-        if (indirect_data_block[i] == -1) {
-            int b = data_block_alloc();
-            if (b == -1) {
-                return -1;
-            }
-            indirect_data_block[i] = b;
-            inode_table[inumber].i_size += BLOCK_SIZE;
-            dir_entry_t *dir_entry = (dir_entry_t *)data_block_get(b);
-            for (size_t i = 0; i < MAX_DIR_ENTRIES; i++) {
-                dir_entry[i].d_inumber = -1;
-            }
-        } else {
-            dir_entry = (dir_entry_t *)data_block_get(indirect_data_block[i]);
-        }
-        if (dir_entry == NULL) {
-            data_block_free(inode_table[inumber].i_direct_data_blocks[i]);
-            return -1;
-        }
-        /* Finds and fills the first empty entry */
-        for (size_t j = 0; j < MAX_DIR_ENTRIES; j++) {
-            if (dir_entry[j].d_inumber == -1) {
-                dir_entry[j].d_inumber = sub_inumber;
-                strncpy(dir_entry[j].d_name, sub_name, MAX_FILE_NAME - 1);
-                dir_entry[j].d_name[MAX_FILE_NAME - 1] = 0;
-                return 0;
-            }
-        }
-    }
+    return -1;
 }
 
 /* Looks for a given name inside a directory

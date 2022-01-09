@@ -276,27 +276,20 @@ int find_in_dir(int inumber, char const *sub_name) {
     }
 
     /* Locates the block containing the directory's entries */
-    for (int i = 0; i < NUM_DIRECT_BLOCKS; i++) {
-        if (inode_table[inumber].i_direct_data_blocks[i] == -1) {
-            continue;
-        }
-        dir_entry_t *dir_entry = (dir_entry_t *)data_block_get(
-            inode_table[inumber].i_direct_data_blocks[i]);
-        if (dir_entry == NULL) {
-            return -1;
-        }
-
-        /* Iterates over the directory entries looking for one that has the
-         * target name */
-        for (int i = 0; i < MAX_DIR_ENTRIES; i++) {
-            if ((dir_entry[i].d_inumber != -1) &&
-                (strncmp(dir_entry[i].d_name, sub_name, MAX_FILE_NAME) == 0)) {
-                return dir_entry[i].d_inumber;
-            }
-        }
+    dir_entry_t *dir_entry = (dir_entry_t *)data_block_get(
+        inode_table[inumber].i_direct_data_blocks[0]);
+    if (dir_entry == NULL) {
+        return -1;
     }
 
-    // TODO: also look in indirect data block
+    /* Iterates over the directory entries looking for one that has the
+     * target name */
+    for (int i = 0; i < MAX_DIR_ENTRIES; i++)
+        if ((dir_entry[i].d_inumber != -1) &&
+            (strncmp(dir_entry[i].d_name, sub_name, MAX_FILE_NAME) == 0)) {
+            return dir_entry[i].d_inumber;
+        }
+
     return -1;
 }
 

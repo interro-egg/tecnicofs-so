@@ -24,7 +24,7 @@ typedef struct {
     inode_type i_node_type;
     size_t i_size;
     int i_direct_data_blocks[NUM_DIRECT_BLOCKS];
-    int i_indirect_data_block;
+    int i_indirect_data_block; // (block_number)
     /* in a real FS, more fields would exist here */
 } inode_t;
 

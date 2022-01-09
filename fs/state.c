@@ -167,7 +167,23 @@ int inode_delete(int inumber) {
         }
     }
 
-    // TODO: account for indirect data block
+    if (inode_table[inumber].i_indirect_data_block != -1) {
+        int *indirect_data_block =
+            (int *)data_block_get(inode_table[inumber].i_indirect_data_block);
+        if (indirect_data_block == NULL) {
+            return -1;
+        }
+
+        for (int i = 0; i < NUM_INDIRECT_ENTRIES; i++) {
+            if (indirect_data_block[i] != -1 &&
+                data_block_free(indirect_data_block[i]) == -1) {
+                return -1;
+            }
+        }
+        if (data_block_free(inode_table[inumber].i_indirect_data_block) == -1) {
+            return -1;
+        }
+    }
 
     return 0;
 }

@@ -56,8 +56,30 @@ int tfs_open(char const *name, int flags) {
         /* Trucate (if requested) */
         if (flags & TFS_O_TRUNC) {
             if (inode->i_size > 0) {
-                if (data_block_free(inode->i_data_block) == -1) {
-                    return -1;
+                for (int i = 0; i < NUM_DIRECT_BLOCKS; i++) {
+                    if (inode->i_direct_data_blocks[i] != -1) {
+                        if (data_block_free(inode->i_direct_data_blocks[i]) ==
+                            -1) {
+                            return -1;
+                        }
+                    }
+                    if (inode->i_indirect_data_block != -1) {
+                        int *indirect_data_block =
+                            (int *)data_block_get(inode->i_indirect_data_block);
+                        if (indirect_data_block == NULL) {
+                            return -1;
+                        }
+                        for (int i = 0; i < NUM_INDIRECT_ENTRIES; i++) {
+                            if (indirect_data_block[i] != -1 &&
+                                data_block_free(indirect_data_block[i]) == -1) {
+                                return -1;
+                            }
+                        }
+                        if (data_block_free(inode->i_indirect_data_block) ==
+                            -1) {
+                            return -1;
+                        }
+                    }
                 }
                 inode->i_size = 0;
             }
@@ -69,7 +91,8 @@ int tfs_open(char const *name, int flags) {
             offset = 0;
         }
     } else if (flags & TFS_O_CREAT) {
-        /* The file doesn't exist; the flags specify that it should be created*/
+        /* The file doesn't exist; the flags specify that it should be
+         * created*/
         /* Create inode */
         inum = inode_create(T_FILE);
         if (inum == -1) {
@@ -89,9 +112,9 @@ int tfs_open(char const *name, int flags) {
      * return the corresponding handle */
     return add_to_open_file_table(inum, offset);
 
-    /* Note: for simplification, if file was created with TFS_O_CREAT and there
-     * is an error adding an entry to the open file table, the file is not
-     * opened but it remains created */
+    /* Note: for simplification, if file was created with TFS_O_CREAT and
+     * there is an error adding an entry to the open file table, the file is
+     * not opened but it remains created */
 }
 
 int tfs_close(int fhandle) { return remove_from_open_file_table(fhandle); }

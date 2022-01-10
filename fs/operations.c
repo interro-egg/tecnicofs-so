@@ -120,8 +120,8 @@ int tfs_open(char const *name, int flags) {
 int tfs_close(int fhandle) { return remove_from_open_file_table(fhandle); }
 
 /* Returns how much was just written or -1 if an error occurs */
-int tfs_write_aux(size_t written, size_t to_write, void const *buffer,
-                  int *blocks, int i, size_t block_offset) {
+ssize_t tfs_write_aux(size_t written, size_t to_write, void const *buffer,
+                      int *blocks, int i, size_t block_offset) {
     void *block = NULL;
     if (blocks[i] == -1) {
         int b = data_block_alloc();
@@ -160,26 +160,28 @@ ssize_t tfs_write(int fhandle, void const *buffer, size_t to_write) {
     size_t written = 0; // maybe use file->of_offset?
 
     for (size_t i = 0; i < NUM_DIRECT_BLOCKS && written < to_write; i++) {
-        int just_written = tfs_write_aux(written, to_write, buffer,
-                                         inode->i_direct_data_blocks, i,
-                                         file->of_offset % BLOCK_SIZE);
+        ssize_t just_written = tfs_write_aux(written, to_write, buffer,
+                                             inode->i_direct_data_blocks, i,
+                                             file->of_offset % BLOCK_SIZE);
         if (just_written == -1) {
+            inode->i_size += written;
             return -1;
         }
         written += just_written;
-        inode->i_size += just_written;
         file->of_offset += just_written;
     }
     if (written < to_write) { // need indirect blocks
         if (inode->i_indirect_data_block == -1) {
             int b = data_block_alloc();
             if (b == -1) {
+                inode->i_size += written;
                 return -1;
             }
         }
         int *indirect_data_block =
             (int *)data_block_get(inode->i_indirect_data_block);
         if (indirect_data_block == NULL) {
+            inode->i_size += written;
             return -1;
         }
         for (size_t i = 0; i < NUM_INDIRECT_ENTRIES && written < to_write;
@@ -188,13 +190,15 @@ ssize_t tfs_write(int fhandle, void const *buffer, size_t to_write) {
                 tfs_write_aux(written, to_write, buffer, indirect_data_block, i,
                               file->of_offset % BLOCK_SIZE);
             if (just_written == -1) {
+                inode->i_size += written;
                 return -1;
             }
             written += just_written;
-            inode->i_size += just_written;
             file->of_offset += just_written;
         }
     }
+
+    inode->i_size += written;
     return (ssize_t)written;
 }
 

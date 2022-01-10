@@ -283,3 +283,40 @@ ssize_t tfs_read(int fhandle, void *buffer, size_t len) {
 
     return (ssize_t)to_read;
 }
+
+int tfs_copy_to_external_fs(char const *source_path, char const *dest_path) {
+    if (!valid_pathname(source_path))
+        return -1;
+
+    int from = tfs_open(source_path, 0);
+    if (from == -1)
+        return -1; // file doesn't exist or error ocurred
+
+    int inumber = tfs_lookup(source_path);
+    if (inumber == -1)
+        return -1;
+
+    inode_t *inode = inode_get(inumber);
+    if (inode == NULL)
+        return -1;
+
+    size_t num_blocks = inode->i_size / BLOCK_SIZE;
+    size_t mod = inode->i_size % BLOCK_SIZE;
+
+    FILE *to = fopen(dest_path, "w");
+    if (to == NULL)
+        return -1;
+
+    for (size_t i = 0; i <= num_blocks; i++) {
+        if (i < num_blocks || mod > 0) {
+            char buffer[BLOCK_SIZE];
+            tfs_read(from, buffer, BLOCK_SIZE);
+            size_t to_write = i < num_blocks ? BLOCK_SIZE / sizeof(char) : mod;
+            fwrite(buffer, sizeof(char), to_write, to);
+        }
+    }
+
+    fclose(to);
+    tfs_close(from);
+    return 0;
+}

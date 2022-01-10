@@ -69,9 +69,9 @@ int tfs_open(char const *name, int flags) {
                         if (indirect_data_block == NULL) {
                             return -1;
                         }
-                        for (int i = 0; i < NUM_INDIRECT_ENTRIES; i++) {
-                            if (indirect_data_block[i] != -1 &&
-                                data_block_free(indirect_data_block[i]) == -1) {
+                        for (int j = 0; j < NUM_INDIRECT_ENTRIES; j++) {
+                            if (indirect_data_block[j] != -1 &&
+                                data_block_free(indirect_data_block[j]) == -1) {
                                 return -1;
                             }
                         }
@@ -121,7 +121,7 @@ int tfs_close(int fhandle) { return remove_from_open_file_table(fhandle); }
 
 /* Returns how much was just written or -1 if an error occurs */
 ssize_t tfs_write_aux(size_t written, size_t to_write, void const *buffer,
-                      int *blocks, int i, size_t block_offset) {
+                      int *blocks, size_t i, size_t block_offset) {
     void *block = NULL;
     if (blocks[i] == -1) {
         int b = data_block_alloc();
@@ -135,9 +135,14 @@ ssize_t tfs_write_aux(size_t written, size_t to_write, void const *buffer,
     }
     // write to block and increase written
     /* Perform the actual write */
-    size_t len = min(to_write - written, BLOCK_SIZE - block_offset);
+
+    size_t remaining_to_write = to_write - written;
+    size_t block_space = BLOCK_SIZE - block_offset;
+    size_t len =
+        remaining_to_write > block_space ? block_space : remaining_to_write;
+
     memcpy(block + block_offset, buffer + written, len);
-    return len;
+    return (ssize_t)len;
 }
 
 ssize_t tfs_write(int fhandle, void const *buffer, size_t to_write) {
@@ -167,8 +172,8 @@ ssize_t tfs_write(int fhandle, void const *buffer, size_t to_write) {
             inode->i_size += written;
             return -1;
         }
-        written += just_written;
-        file->of_offset += just_written;
+        written += (size_t)just_written;
+        file->of_offset += (size_t)just_written;
     }
 
     if (written < to_write) { // need indirect blocks
@@ -187,15 +192,15 @@ ssize_t tfs_write(int fhandle, void const *buffer, size_t to_write) {
         }
         for (size_t i = 0; i < NUM_INDIRECT_ENTRIES && written < to_write;
              i++) {
-            int just_written =
+            ssize_t just_written =
                 tfs_write_aux(written, to_write, buffer, indirect_data_block, i,
                               file->of_offset % BLOCK_SIZE);
             if (just_written == -1) {
                 inode->i_size += written;
                 return -1;
             }
-            written += just_written;
-            file->of_offset += just_written;
+            written += (size_t)just_written;
+            file->of_offset += (size_t)just_written;
         }
     }
 
@@ -206,7 +211,7 @@ ssize_t tfs_write(int fhandle, void const *buffer, size_t to_write) {
 
 /* Returns how much was just read or -1 if an error occurs */
 ssize_t tfs_read_aux(size_t read, size_t to_read, void const *buffer,
-                     int *blocks, int i, size_t block_offset) {
+                     int *blocks, size_t i, size_t block_offset) {
     if (blocks[i] == -1) {
         return -1;
     }
@@ -214,9 +219,14 @@ ssize_t tfs_read_aux(size_t read, size_t to_read, void const *buffer,
 
     // read from block and increase read
     /* Perform the actual read */
-    ssize_t len = min(to_read - read, BLOCK_SIZE - block_offset);
-    memcpy(buffer + read, block + block_offset, len);
-    return len;
+
+    size_t remaining_to_read = to_read - read;
+    size_t block_space = BLOCK_SIZE - block_offset;
+    size_t len =
+        remaining_to_read > block_space ? block_space : remaining_to_read;
+
+    memcpy((void *)buffer + read, block + block_offset, len);
+    return (ssize_t)len;
 }
 
 ssize_t tfs_read(int fhandle, void *buffer, size_t len) {
@@ -246,8 +256,8 @@ ssize_t tfs_read(int fhandle, void *buffer, size_t len) {
         if (just_read == -1) {
             return -1;
         }
-        read += just_read;
-        file->of_offset += just_read;
+        read += (size_t)just_read;
+        file->of_offset += (size_t)just_read;
     }
 
     if (read < to_read) { // need indirect blocks
@@ -260,14 +270,14 @@ ssize_t tfs_read(int fhandle, void *buffer, size_t len) {
             return -1;
         }
         for (size_t i = 0; i < NUM_INDIRECT_ENTRIES && read < to_read; i++) {
-            int just_read =
+            ssize_t just_read =
                 tfs_read_aux(read, to_read, buffer, indirect_data_block, i,
-                             file->of_offset % BLOCK_SIZE); // TODO: review args
+                             file->of_offset % BLOCK_SIZE);
             if (just_read == -1) {
                 return -1;
             }
-            read += just_read;
-            file->of_offset += just_read;
+            read += (size_t)just_read;
+            file->of_offset += (size_t)just_read;
         }
     }
 

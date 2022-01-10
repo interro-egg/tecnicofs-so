@@ -11,6 +11,8 @@
 #define MAX_OPEN_FILES (20)
 #define MAX_FILE_NAME (40)
 #define NUM_INDIRECT_ENTRIES (BLOCK_SIZE / sizeof(int))
+#define MAX_FILE_SIZE                                                          \
+    (BLOCK_SIZE * NUM_DIRECT_BLOCKS + BLOCK_SIZE * NUM_INDIRECT_ENTRIES)
 
 #define DELAY (5000)
 

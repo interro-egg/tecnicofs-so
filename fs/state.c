@@ -111,7 +111,11 @@ int inode_create(inode_type n_type) {
                 }
 
                 inode_table[inumber].i_size = BLOCK_SIZE;
-                inode_table[inumber].i_data_block = b;
+                inode_table[inumber].i_direct_data_blocks[0] = b;
+                for (int i = 1; i < NUM_DIRECT_BLOCKS; i++) {
+                    inode_table[inumber].i_direct_data_blocks[i] = -1;
+                }
+                inode_table[inumber].i_indirect_data_block = -1;
 
                 dir_entry_t *dir_entry = (dir_entry_t *)data_block_get(b);
                 if (dir_entry == NULL) {
@@ -125,7 +129,10 @@ int inode_create(inode_type n_type) {
             } else {
                 /* In case of a new file, simply sets its size to 0 */
                 inode_table[inumber].i_size = 0;
-                inode_table[inumber].i_data_block = -1;
+                for (int i = 0; i < NUM_DIRECT_BLOCKS; i++) {
+                    inode_table[inumber].i_direct_data_blocks[i] = -1;
+                }
+                inode_table[inumber].i_indirect_data_block = -1;
             }
             return inumber;
         }
@@ -151,7 +158,29 @@ int inode_delete(int inumber) {
     freeinode_ts[inumber] = FREE;
 
     if (inode_table[inumber].i_size > 0) {
-        if (data_block_free(inode_table[inumber].i_data_block) == -1) {
+        for (int i = 0; i < NUM_DIRECT_BLOCKS; i++) {
+            if (inode_table[inumber].i_direct_data_blocks[i] == -1 ||
+                data_block_free(inode_table[inumber].i_direct_data_blocks[i]) ==
+                    -1) {
+                return -1;
+            }
+        }
+    }
+
+    if (inode_table[inumber].i_indirect_data_block != -1) {
+        int *indirect_data_block =
+            (int *)data_block_get(inode_table[inumber].i_indirect_data_block);
+        if (indirect_data_block == NULL) {
+            return -1;
+        }
+
+        for (int i = 0; i < NUM_INDIRECT_ENTRIES; i++) {
+            if (indirect_data_block[i] != -1 &&
+                data_block_free(indirect_data_block[i]) == -1) {
+                return -1;
+            }
+        }
+        if (data_block_free(inode_table[inumber].i_indirect_data_block) == -1) {
             return -1;
         }
     }
@@ -197,8 +226,8 @@ int add_dir_entry(int inumber, int sub_inumber, char const *sub_name) {
     }
 
     /* Locates the block containing the directory's entries */
-    dir_entry_t *dir_entry =
-        (dir_entry_t *)data_block_get(inode_table[inumber].i_data_block);
+    dir_entry_t *dir_entry = (dir_entry_t *)data_block_get(
+        inode_table[inumber].i_direct_data_blocks[0]);
     if (dir_entry == NULL) {
         return -1;
     }
@@ -230,14 +259,14 @@ int find_in_dir(int inumber, char const *sub_name) {
     }
 
     /* Locates the block containing the directory's entries */
-    dir_entry_t *dir_entry =
-        (dir_entry_t *)data_block_get(inode_table[inumber].i_data_block);
+    dir_entry_t *dir_entry = (dir_entry_t *)data_block_get(
+        inode_table[inumber].i_direct_data_blocks[0]);
     if (dir_entry == NULL) {
         return -1;
     }
 
-    /* Iterates over the directory entries looking for one that has the target
-     * name */
+    /* Iterates over the directory entries looking for one that has the
+     * target name */
     for (int i = 0; i < MAX_DIR_ENTRIES; i++)
         if ((dir_entry[i].d_inumber != -1) &&
             (strncmp(dir_entry[i].d_name, sub_name, MAX_FILE_NAME) == 0)) {

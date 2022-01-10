@@ -5,10 +5,14 @@
 #define ROOT_DIR_INUM (0)
 
 #define BLOCK_SIZE (1024)
+#define NUM_DIRECT_BLOCKS (10)
 #define DATA_BLOCKS (1024)
 #define INODE_TABLE_SIZE (50)
 #define MAX_OPEN_FILES (20)
 #define MAX_FILE_NAME (40)
+#define NUM_INDIRECT_ENTRIES (BLOCK_SIZE / sizeof(int))
+#define MAX_FILE_SIZE                                                          \
+    (BLOCK_SIZE * NUM_DIRECT_BLOCKS + BLOCK_SIZE * NUM_INDIRECT_ENTRIES)
 
 #define DELAY (5000)
 

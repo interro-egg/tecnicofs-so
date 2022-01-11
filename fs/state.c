@@ -1,5 +1,6 @@
 #include "state.h"
 
+#include <pthread.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,6 +13,7 @@
 /* I-node table */
 static inode_t inode_table[INODE_TABLE_SIZE];
 static char freeinode_ts[INODE_TABLE_SIZE];
+static pthread_mutex_t freeinode_lock = PTHREAD_MUTEX_INITIALIZER;
 
 /* Data blocks */
 static char fs_data[BLOCK_SIZE * DATA_BLOCKS];
@@ -79,6 +81,7 @@ void state_init() {
 }
 
 void state_destroy() { /* nothing to do */
+    pthread_mutex_destroy(&freeinode_lock);
 }
 
 /*
@@ -89,6 +92,8 @@ void state_destroy() { /* nothing to do */
  *  new i-node's number if successfully created, -1 otherwise
  */
 int inode_create(inode_type n_type) {
+    pthread_mutex_lock(&freeinode_lock);
+
     for (int inumber = 0; inumber < INODE_TABLE_SIZE; inumber++) {
         if ((inumber * (int)sizeof(allocation_state_t) % BLOCK_SIZE) == 0) {
             insert_delay(); // simulate storage access delay (to freeinode_ts)
@@ -107,6 +112,7 @@ int inode_create(inode_type n_type) {
                 int b = data_block_alloc();
                 if (b == -1) {
                     freeinode_ts[inumber] = FREE;
+                    pthread_mutex_unlock(&freeinode_lock);
                     return -1;
                 }
 
@@ -120,6 +126,7 @@ int inode_create(inode_type n_type) {
                 dir_entry_t *dir_entry = (dir_entry_t *)data_block_get(b);
                 if (dir_entry == NULL) {
                     freeinode_ts[inumber] = FREE;
+                    pthread_mutex_unlock(&freeinode_lock);
                     return -1;
                 }
 
@@ -134,9 +141,13 @@ int inode_create(inode_type n_type) {
                 }
                 inode_table[inumber].i_indirect_data_block = -1;
             }
+
+            pthread_mutex_unlock(&freeinode_lock);
             return inumber;
         }
     }
+
+    pthread_mutex_unlock(&freeinode_lock);
     return -1;
 }
 
@@ -151,7 +162,10 @@ int inode_delete(int inumber) {
     insert_delay();
     insert_delay();
 
+    pthread_mutex_lock(&freeinode_lock);
+
     if (!valid_inumber(inumber) || freeinode_ts[inumber] == FREE) {
+        pthread_mutex_unlock(&freeinode_lock);
         return -1;
     }
 
@@ -162,6 +176,7 @@ int inode_delete(int inumber) {
             if (inode_table[inumber].i_direct_data_blocks[i] == -1 ||
                 data_block_free(inode_table[inumber].i_direct_data_blocks[i]) ==
                     -1) {
+                pthread_mutex_unlock(&freeinode_lock);
                 return -1;
             }
         }
@@ -171,20 +186,24 @@ int inode_delete(int inumber) {
         int *indirect_data_block =
             (int *)data_block_get(inode_table[inumber].i_indirect_data_block);
         if (indirect_data_block == NULL) {
+            pthread_mutex_unlock(&freeinode_lock);
             return -1;
         }
 
         for (int i = 0; i < NUM_INDIRECT_ENTRIES; i++) {
             if (indirect_data_block[i] != -1 &&
                 data_block_free(indirect_data_block[i]) == -1) {
+                pthread_mutex_unlock(&freeinode_lock);
                 return -1;
             }
         }
         if (data_block_free(inode_table[inumber].i_indirect_data_block) == -1) {
+            pthread_mutex_unlock(&freeinode_lock);
             return -1;
         }
     }
 
+    pthread_mutex_unlock(&freeinode_lock);
     return 0;
 }
 

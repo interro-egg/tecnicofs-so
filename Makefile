@@ -6,6 +6,8 @@
 CC ?= gcc
 LD ?= gcc
 
+LDFLAGS += -lpthread
+
 # space separated list of directories with header files
 INCLUDE_DIRS := fs .
 # this creates a space separated list of -I<dir> where <dir> is each of the values in INCLUDE_DIRS

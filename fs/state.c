@@ -24,6 +24,7 @@ static pthread_mutex_t freeblocks_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static open_file_entry_t open_file_table[MAX_OPEN_FILES];
 static char free_open_file_entries[MAX_OPEN_FILES];
+static pthread_mutex_t freeopenfiles_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static inline bool valid_inumber(int inumber) {
     return inumber >= 0 && inumber < INODE_TABLE_SIZE;
@@ -357,14 +358,19 @@ void *data_block_get(int block_number) {
  * Returns: file handle if successful, -1 otherwise
  */
 int add_to_open_file_table(int inumber, size_t offset) {
+    pthread_mutex_lock(&freeopenfiles_lock);
+
     for (int i = 0; i < MAX_OPEN_FILES; i++) {
         if (free_open_file_entries[i] == FREE) {
             free_open_file_entries[i] = TAKEN;
             open_file_table[i].of_inumber = inumber;
             open_file_table[i].of_offset = offset;
+            pthread_mutex_unlock(&freeopenfiles_lock);
             return i;
         }
     }
+
+    pthread_mutex_unlock(&freeopenfiles_lock);
     return -1;
 }
 
@@ -374,11 +380,16 @@ int add_to_open_file_table(int inumber, size_t offset) {
  * Returns 0 is success, -1 otherwise
  */
 int remove_from_open_file_table(int fhandle) {
+    pthread_mutex_lock(&freeopenfiles_lock);
+
     if (!valid_file_handle(fhandle) ||
         free_open_file_entries[fhandle] != TAKEN) {
+        pthread_mutex_unlock(&freeopenfiles_lock);
         return -1;
     }
     free_open_file_entries[fhandle] = FREE;
+
+    pthread_mutex_unlock(&freeopenfiles_lock);
     return 0;
 }
 

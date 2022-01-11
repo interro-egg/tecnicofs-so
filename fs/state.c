@@ -23,6 +23,7 @@ static pthread_mutex_t freeblocks_lock = PTHREAD_MUTEX_INITIALIZER;
 /* Volatile FS state */
 
 static open_file_entry_t open_file_table[MAX_OPEN_FILES];
+static pthread_mutex_t open_file_locks[MAX_OPEN_FILES];
 static char free_open_file_entries[MAX_OPEN_FILES];
 static pthread_mutex_t freeopenfiles_lock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -79,11 +80,17 @@ void state_init() {
 
     for (size_t i = 0; i < MAX_OPEN_FILES; i++) {
         free_open_file_entries[i] = FREE;
+        pthread_mutex_init(&open_file_locks[i], NULL);
     }
 }
 
 void state_destroy() { /* nothing to do */
     pthread_mutex_destroy(&freeinode_lock);
+    pthread_mutex_destroy(&freeblocks_lock);
+    pthread_mutex_destroy(&freeopenfiles_lock);
+    for (size_t i = 0; i < MAX_OPEN_FILES; i++) {
+        pthread_mutex_destroy(&open_file_locks[i]);
+    }
 }
 
 /*
@@ -363,9 +370,10 @@ int add_to_open_file_table(int inumber, size_t offset) {
     for (int i = 0; i < MAX_OPEN_FILES; i++) {
         if (free_open_file_entries[i] == FREE) {
             free_open_file_entries[i] = TAKEN;
+            pthread_mutex_lock(&open_file_locks[i]);
             open_file_table[i].of_inumber = inumber;
             open_file_table[i].of_offset = offset;
-            pthread_mutex_unlock(&freeopenfiles_lock);
+            pthread_mutex_unlock(&open_file_locks[i]);
             return i;
         }
     }
@@ -402,5 +410,6 @@ open_file_entry_t *get_open_file_entry(int fhandle) {
     if (!valid_file_handle(fhandle)) {
         return NULL;
     }
+    //! FIXME: vv this will allow operations.c to change things without locking!
     return &open_file_table[fhandle];
 }

@@ -252,7 +252,7 @@ ssize_t tfs_read(int fhandle, void *buffer, size_t len) {
     for (size_t i = 0; i < NUM_DIRECT_BLOCKS && read < to_read; i++) {
         ssize_t just_read =
             tfs_read_aux(read, to_read, buffer, inode->i_direct_data_blocks, i,
-                         file->of_offset % BLOCK_SIZE); // TODO: review args
+                         file->of_offset % BLOCK_SIZE);
         if (just_read == -1) {
             return -1;
         }

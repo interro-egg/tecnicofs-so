@@ -169,12 +169,16 @@ ssize_t tfs_write(int fhandle, void const *buffer, size_t to_write) {
         return -1;
     }
 
+    inode_wrlock(file->of_inumber);
+
+    if (file->of_offset > inode->i_size) {
+        file->of_offset = inode->i_size;
+    }
+
     /* Determine how many bytes to write */
     if (to_write + file->of_offset > MAX_FILE_SIZE) {
         to_write = MAX_FILE_SIZE - file->of_offset;
     }
-
-    inode_wrlock(file->of_inumber);
 
     size_t written = 0; // maybe use file->of_offset?
 
@@ -270,6 +274,13 @@ ssize_t tfs_read(int fhandle, void *buffer, size_t len) {
     }
 
     inode_rdlock(file->of_inumber);
+
+    if (file->of_offset > inode->i_size) {
+        // can't just check to_read < 0 because size_t is unsigned
+        inode_unlock(file->of_inumber);
+        fd_unlock(fhandle);
+        return 0;
+    }
 
     /* Determine how many bytes to read */
     size_t to_read = inode->i_size - file->of_offset;

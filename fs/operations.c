@@ -357,11 +357,19 @@ int tfs_copy_to_external_fs(char const *source_path, char const *dest_path) {
             char buffer[BLOCK_SIZE];
             if (tfs_read(from, buffer, BLOCK_SIZE) == -1) {
                 inode_unlock(inumber);
+                // no need to check the two calls below because we're returning
+                // an error anyway
+                fclose(to);
+                tfs_close(from);
                 return -1;
             }
             size_t to_write = i < num_blocks ? BLOCK_SIZE / sizeof(char) : mod;
             if (fwrite(buffer, sizeof(char), to_write, to) != to_write) {
                 inode_unlock(inumber);
+                // no need to check the two calls below because we're returning
+                // an error anyway
+                fclose(to);
+                tfs_close(from);
                 return -1;
             }
         }

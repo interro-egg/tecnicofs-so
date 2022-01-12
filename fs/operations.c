@@ -344,54 +344,36 @@ int tfs_copy_to_external_fs(char const *source_path, char const *dest_path) {
     if (from == -1)
         return -1; // file doesn't exist or error ocurred
 
-    int inumber = tfs_lookup(source_path);
-    if (inumber == -1)
-        return -1;
-
-    inode_t *inode = inode_get(inumber);
-    if (inode == NULL)
-        return -1;
-
-    inode_rdlock(inumber);
-
-    size_t num_blocks = inode->i_size / BLOCK_SIZE;
-    size_t mod = inode->i_size % BLOCK_SIZE;
-
     FILE *to = fopen(dest_path, "w");
     if (to == NULL) {
-        inode_unlock(inumber);
+        // no need to check for errors because we're returning -1 anyway
+        tfs_close(from);
         return -1;
     }
 
-    for (size_t i = 0; i <= num_blocks; i++) {
-        if (i < num_blocks || mod > 0) {
-            char buffer[BLOCK_SIZE];
-            if (tfs_read(from, buffer, BLOCK_SIZE) == -1) {
-                inode_unlock(inumber);
-                // no need to check the two calls below because we're returning
-                // an error anyway
-                fclose(to);
-                tfs_close(from);
-                return -1;
-            }
-            size_t to_write = i < num_blocks ? BLOCK_SIZE / sizeof(char) : mod;
-            if (fwrite(buffer, sizeof(char), to_write, to) != to_write) {
-                inode_unlock(inumber);
-                // no need to check the two calls below because we're returning
-                // an error anyway
-                fclose(to);
-                tfs_close(from);
-                return -1;
-            }
+    char buffer[BLOCK_SIZE]; // arbitrary size
+    ssize_t read;
+    while ((read = tfs_read(from, buffer, BLOCK_SIZE)) > 0) {
+        if (fwrite(buffer, sizeof(char), (size_t)read, to) != read) {
+            // no need to check the two calls below because we're returning an
+            // error anyway
+            fclose(to);
+            tfs_close(from);
+            return -1;
         }
+
+        if (read < BLOCK_SIZE)
+            break;
     }
 
-    inode_unlock(inumber);
-
-    if (fclose(to) != 0)
+    if (fclose(to) != 0) {
+        // no need to check for errors since we're returning -1 anyway
+        tfs_close(from);
         return -1;
-    if (tfs_close(from) == -1)
+    }
+    if (tfs_close(from) == -1) {
         return -1;
+    }
 
     return 0;
 }

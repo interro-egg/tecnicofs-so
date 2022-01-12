@@ -498,3 +498,13 @@ open_file_entry_t *get_open_file_entry(int fhandle) {
     //! FIXME: vv this will allow operations.c to change things without locking!
     return &open_file_table[fhandle];
 }
+
+void inode_rdlock(int inumber) { rwlock_rdlock(&inode_locks[inumber]); }
+
+void inode_wrlock(int inumber) { rwlock_wrlock(&inode_locks[inumber]); }
+
+void inode_unlock(int inumber) { rwlock_unlock(&inode_locks[inumber]); }
+
+void fd_lock(int fhandle) { mutex_lock(&open_file_locks[fhandle]); }
+
+void fd_unlock(int fhandle) { mutex_unlock(&open_file_locks[fhandle]); }

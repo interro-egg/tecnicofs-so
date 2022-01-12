@@ -59,4 +59,10 @@ int add_to_open_file_table(int inumber, size_t offset);
 int remove_from_open_file_table(int fhandle);
 open_file_entry_t *get_open_file_entry(int fhandle);
 
+void inode_rdlock(int inumber);
+void inode_wrlock(int inumber);
+void inode_unlock(int inumber);
+void fd_lock(int fhandle);
+void fd_unlock(int fhandle);
+
 #endif // STATE_H

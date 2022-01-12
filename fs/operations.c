@@ -310,13 +310,18 @@ int tfs_copy_to_external_fs(char const *source_path, char const *dest_path) {
     for (size_t i = 0; i <= num_blocks; i++) {
         if (i < num_blocks || mod > 0) {
             char buffer[BLOCK_SIZE];
-            tfs_read(from, buffer, BLOCK_SIZE);
+            if (tfs_read(from, buffer, BLOCK_SIZE) == -1)
+                return -1;
             size_t to_write = i < num_blocks ? BLOCK_SIZE / sizeof(char) : mod;
-            fwrite(buffer, sizeof(char), to_write, to);
+            if (fwrite(buffer, sizeof(char), to_write, to) != to_write)
+                return -1;
         }
     }
 
-    fclose(to);
-    tfs_close(from);
+    if (fclose(to) != 0)
+        return -1;
+    if (tfs_close(from) == -1)
+        return -1;
+
     return 0;
 }

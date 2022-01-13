@@ -181,12 +181,15 @@ ssize_t tfs_write(int fhandle, void const *buffer, size_t to_write) {
     }
 
     size_t written = 0; // maybe use file->of_offset?
+    size_t first_block = file->of_offset / BLOCK_SIZE;
 
-    for (size_t i = 0; i < NUM_DIRECT_BLOCKS && written < to_write; i++) {
+    for (size_t i = first_block; i < NUM_DIRECT_BLOCKS && written < to_write;
+         i++) {
         ssize_t just_written = tfs_write_aux(written, to_write, buffer,
                                              inode->i_direct_data_blocks, i,
                                              file->of_offset % BLOCK_SIZE);
         if (just_written == -1) {
+            // FIXME: does not account when replacing content
             inode->i_size += written;
             inode_unlock(file->of_inumber);
             fd_unlock(fhandle);
@@ -200,26 +203,39 @@ ssize_t tfs_write(int fhandle, void const *buffer, size_t to_write) {
         if (inode->i_indirect_data_block == -1) {
             int b = data_block_alloc();
             if (b == -1) {
+                // FIXME: does not account when replacing content
                 inode->i_size += written;
                 inode_unlock(file->of_inumber);
                 fd_unlock(fhandle);
                 return -1;
             }
+            inode->i_indirect_data_block = b;
+            int *indirect_data_block =
+                (int *)data_block_get(inode->i_indirect_data_block);
+            if (indirect_data_block != NULL) {
+                for (int i = 0; i < BLOCK_SIZE / sizeof(int); ++i) {
+                    indirect_data_block[i] = -1;
+                }
+            }
         }
         int *indirect_data_block =
             (int *)data_block_get(inode->i_indirect_data_block);
         if (indirect_data_block == NULL) {
+            // FIXME: does not account when replacing content
             inode->i_size += written;
             inode_unlock(file->of_inumber);
             fd_unlock(fhandle);
             return -1;
         }
-        for (size_t i = 0; i < NUM_INDIRECT_ENTRIES && written < to_write;
-             i++) {
+        size_t first_indirect_block =
+            (file->of_offset - NUM_DIRECT_BLOCKS * BLOCK_SIZE) / BLOCK_SIZE;
+        for (size_t i = first_indirect_block;
+             i < NUM_INDIRECT_ENTRIES && written < to_write; i++) {
             ssize_t just_written =
                 tfs_write_aux(written, to_write, buffer, indirect_data_block, i,
                               file->of_offset % BLOCK_SIZE);
             if (just_written == -1) {
+                // FIXME: does not account when replacing content
                 inode->i_size += written;
                 inode_unlock(file->of_inumber);
                 fd_unlock(fhandle);
@@ -230,8 +246,10 @@ ssize_t tfs_write(int fhandle, void const *buffer, size_t to_write) {
         }
     }
 
-    inode->i_size =
-        file->of_offset; // in theory, the same as inode->i_size += written;
+    if (file->of_offset > inode->i_size) {
+        inode->i_size =
+            file->of_offset; // in theory, the same as inode->i_size += written;
+    }
 
     inode_unlock(file->of_inumber);
     fd_unlock(fhandle);
@@ -289,8 +307,11 @@ ssize_t tfs_read(int fhandle, void *buffer, size_t len) {
     }
 
     size_t read = 0;
+    // TODO: check if this works with an empty file
 
-    for (size_t i = 0; i < NUM_DIRECT_BLOCKS && read < to_read; i++) {
+    size_t first_block = file->of_offset / BLOCK_SIZE;
+
+    for (size_t i = first_block; i < NUM_DIRECT_BLOCKS && read < to_read; i++) {
         ssize_t just_read =
             tfs_read_aux(read, to_read, buffer, inode->i_direct_data_blocks, i,
                          file->of_offset % BLOCK_SIZE);
@@ -316,7 +337,11 @@ ssize_t tfs_read(int fhandle, void *buffer, size_t len) {
             fd_unlock(fhandle);
             return -1;
         }
-        for (size_t i = 0; i < NUM_INDIRECT_ENTRIES && read < to_read; i++) {
+
+        size_t first_indirect_block =
+            (file->of_offset - NUM_DIRECT_BLOCKS * BLOCK_SIZE) / BLOCK_SIZE;
+        for (size_t i = first_indirect_block;
+             i < NUM_INDIRECT_ENTRIES && read < to_read; i++) {
             ssize_t just_read =
                 tfs_read_aux(read, to_read, buffer, indirect_data_block, i,
                              file->of_offset % BLOCK_SIZE);

@@ -337,9 +337,6 @@ ssize_t tfs_read(int fhandle, void *buffer, size_t len) {
 }
 
 int tfs_copy_to_external_fs(char const *source_path, char const *dest_path) {
-    if (!valid_pathname(source_path))
-        return -1;
-
     int from = tfs_open(source_path, 0);
     if (from == -1)
         return -1; // file doesn't exist or error ocurred

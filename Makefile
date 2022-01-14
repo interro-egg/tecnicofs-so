@@ -22,9 +22,9 @@ TARGET_EXECS := tests/test1 tests/copy_to_external_simple tests/copy_to_external
 vpath # clears VPATH
 vpath %.h $(INCLUDE_DIRS)
 
-LDFLAGS += -lpthread
+LDFLAGS += -pthread -fsanitize=thread
 
-CFLAGS = -std=c11 -D_POSIX_C_SOURCE=200809L -fsanitize=thread
+CFLAGS = -std=c11 -D_POSIX_C_SOURCE=200809L
 CFLAGS += $(INCLUDES)
 
 # Warnings

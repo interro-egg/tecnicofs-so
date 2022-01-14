@@ -3,10 +3,14 @@
 #include <pthread.h>
 #include <string.h>
 
+#define BUFFER_SIZE 2000
+#define THREADS 20
+
 void *function(void *ipath) {
 
     char *str = (char *)malloc(sizeof(char) * 1555);
     memset(str, 'A', 1554);
+    str[1554] = '\0';
     char *path = (char *)ipath;
 
     int f;
@@ -27,8 +31,9 @@ void *function2(void *ipath) {
 
     char *str = (char *)malloc(sizeof(char) * 1555);
     memset(str, 'A', 1554);
+    str[1554] = '\0';
     char *path = (char *)ipath;
-    char buffer[2000];
+    char buffer[BUFFER_SIZE];
 
     int f;
     ssize_t r;
@@ -36,7 +41,7 @@ void *function2(void *ipath) {
     f = tfs_open(path, 0);
     assert(f != -1);
 
-    r = tfs_read(f, buffer, sizeof(buffer) - 1);
+    r = tfs_read(f, buffer, BUFFER_SIZE);
     assert(r == strlen(str));
 
     buffer[r] = '\0';
@@ -51,23 +56,23 @@ int main() {
 
     assert(tfs_init() != -1);
 
-    pthread_t tid[20];
-    for (int i = 0; i < 20; i++) {
+    pthread_t tid[THREADS];
 
-        char path[10] = "";
-        sprintf(path, "/f%d", i);
-        pthread_create(&tid[i], NULL, &function, (void *)path);
+    char path[THREADS][10];
+    for (int i = 0; i < THREADS; i++) {
+        sprintf(path[i], "/f%d", i);
+
+        pthread_create(&tid[i], NULL, &function, (void *)path[i]);
     }
-    for (int i = 0; i < 20; i++) {
+    for (int i = 0; i < THREADS; i++) {
         pthread_join(tid[i], NULL);
     }
-    for (int i = 0; i < 20; i++) {
-        char path[10] = "";
-        sprintf(path, "/f%d", i);
+    for (int i = 0; i < THREADS; i++) {
+        sprintf(path[i], "/f%d", i);
 
-        pthread_create(&tid[i], NULL, &function, (void *)path);
+        pthread_create(&tid[i], NULL, &function2, (void *)path[i]);
     }
-    for (int i = 0; i < 20; i++) {
+    for (int i = 0; i < THREADS; i++) {
         pthread_join(tid[i], NULL);
     }
     printf("Successful test.\n");

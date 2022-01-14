@@ -189,8 +189,8 @@ ssize_t tfs_write(int fhandle, void const *buffer, size_t to_write) {
                                              inode->i_direct_data_blocks, i,
                                              file->of_offset % BLOCK_SIZE);
         if (just_written == -1) {
-            // FIXME: does not account when replacing content
-            inode->i_size += written;
+            if (file->of_offset > inode->i_size)
+                inode->i_size = file->of_offset;
             inode_unlock(file->of_inumber);
             fd_unlock(fhandle);
             return -1;
@@ -203,8 +203,8 @@ ssize_t tfs_write(int fhandle, void const *buffer, size_t to_write) {
         if (inode->i_indirect_data_block == -1) {
             int b = data_block_alloc();
             if (b == -1) {
-                // FIXME: does not account when replacing content
-                inode->i_size += written;
+                if (file->of_offset > inode->i_size)
+                    inode->i_size = file->of_offset;
                 inode_unlock(file->of_inumber);
                 fd_unlock(fhandle);
                 return -1;
@@ -221,8 +221,8 @@ ssize_t tfs_write(int fhandle, void const *buffer, size_t to_write) {
         int *indirect_data_block =
             (int *)data_block_get(inode->i_indirect_data_block);
         if (indirect_data_block == NULL) {
-            // FIXME: does not account when replacing content
-            inode->i_size += written;
+            if (file->of_offset > inode->i_size)
+                inode->i_size = file->of_offset;
             inode_unlock(file->of_inumber);
             fd_unlock(fhandle);
             return -1;
@@ -235,8 +235,8 @@ ssize_t tfs_write(int fhandle, void const *buffer, size_t to_write) {
                 tfs_write_aux(written, to_write, buffer, indirect_data_block, i,
                               file->of_offset % BLOCK_SIZE);
             if (just_written == -1) {
-                // FIXME: does not account when replacing content
-                inode->i_size += written;
+                if (file->of_offset > inode->i_size)
+                    inode->i_size = file->of_offset;
                 inode_unlock(file->of_inumber);
                 fd_unlock(fhandle);
                 return -1;
@@ -247,8 +247,7 @@ ssize_t tfs_write(int fhandle, void const *buffer, size_t to_write) {
     }
 
     if (file->of_offset > inode->i_size) {
-        inode->i_size =
-            file->of_offset; // in theory, the same as inode->i_size += written;
+        inode->i_size = file->of_offset;
     }
 
     inode_unlock(file->of_inumber);
@@ -307,7 +306,6 @@ ssize_t tfs_read(int fhandle, void *buffer, size_t len) {
     }
 
     size_t read = 0;
-    // TODO: check if this works with an empty file
 
     size_t first_block = file->of_offset / BLOCK_SIZE;
 

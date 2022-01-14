@@ -6,7 +6,6 @@
 CC ?= gcc
 LD ?= gcc
 
-LDFLAGS += -lpthread
 
 # space separated list of directories with header files
 INCLUDE_DIRS := fs .
@@ -16,12 +15,14 @@ INCLUDES = $(addprefix -I, $(INCLUDE_DIRS))
 SOURCES  := $(wildcard */*.c)
 HEADERS  := $(wildcard */*.h)
 OBJECTS  := $(SOURCES:.c=.o)
-TARGET_EXECS := tests/test1 tests/copy_to_external_simple tests/copy_to_external_errors tests/write_10_blocks_spill tests/write_10_blocks_simple tests/write_more_than_10_blocks_simple
+TARGET_EXECS := tests/test1 tests/copy_to_external_simple tests/copy_to_external_errors tests/write_10_blocks_spill tests/write_10_blocks_simple tests/write_more_than_10_blocks_simple tests/threads_read_same_file tests/threads_write_different_files tests/threads_write_same_file tests/threads_truncate_and_append
 
 # VPATH is a variable used by Makefile which finds *sources* and makes them available throughout the codebase
 # vpath %.h <DIR> tells make to look for header files in <DIR>
 vpath # clears VPATH
 vpath %.h $(INCLUDE_DIRS)
+
+LDFLAGS += -pthread -fsanitize=thread
 
 CFLAGS = -std=c11 -D_POSIX_C_SOURCE=200809L
 CFLAGS += $(INCLUDES)
@@ -72,6 +73,10 @@ tests/copy_to_external_simple: tests/copy_to_external_simple.o fs/operations.o f
 tests/write_10_blocks_spill: tests/write_10_blocks_spill.o fs/operations.o fs/state.o
 tests/write_10_blocks_simple: tests/write_10_blocks_simple.o fs/operations.o fs/state.o
 tests/write_more_than_10_blocks_simple: tests/write_more_than_10_blocks_simple.o fs/operations.o fs/state.o
+tests/threads_read_same_file: tests/threads_read_same_file.o fs/operations.o fs/state.o
+tests/threads_write_different_files: tests/threads_write_different_files.o fs/operations.o fs/state.o
+tests/threads_write_same_file: tests/threads_write_same_file.o fs/operations.o fs/state.o
+tests/threads_truncate_and_append: tests/threads_truncate_and_append.o fs/operations.o fs/state.o
 
 
 clean:

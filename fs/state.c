@@ -301,7 +301,7 @@ inode_t *inode_get(int inumber) {
     }
 
     insert_delay(); // simulate storage access delay to i-node
-    //! FIXME: vv this will allow operations.c to change things without locking!
+
     return &inode_table[inumber];
 }
 
@@ -454,11 +454,8 @@ int add_to_open_file_table(int inumber, size_t offset) {
         if (free_open_file_entries[i] == FREE) {
             free_open_file_entries[i] = TAKEN;
             mutex_unlock(&freeopenfiles_lock);
-            // vv NOT NECESSARY BECAUSE FIXME:
-            // mutex_lock(&open_file_locks[i]);
             open_file_table[i].of_inumber = inumber;
             open_file_table[i].of_offset = offset;
-            // mutex_unlock(&open_file_locks[i]);
             return i;
         }
     }
@@ -495,7 +492,7 @@ open_file_entry_t *get_open_file_entry(int fhandle) {
     if (!valid_file_handle(fhandle)) {
         return NULL;
     }
-    //! FIXME: vv this will allow operations.c to change things without locking!
+
     return &open_file_table[fhandle];
 }
 

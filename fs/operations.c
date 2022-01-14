@@ -64,6 +64,7 @@ int tfs_open(char const *name, int flags) {
                             inode_unlock(inum);
                             return -1;
                         }
+                        inode->i_direct_data_blocks[i] = -1;
                     }
                     if (inode->i_indirect_data_block != -1) {
                         int *indirect_data_block =
@@ -73,10 +74,13 @@ int tfs_open(char const *name, int flags) {
                             return -1;
                         }
                         for (int j = 0; j < NUM_INDIRECT_ENTRIES; j++) {
-                            if (indirect_data_block[j] != -1 &&
-                                data_block_free(indirect_data_block[j]) == -1) {
-                                inode_unlock(inum);
-                                return -1;
+                            if (indirect_data_block[j] != -1) {
+                                if (data_block_free(indirect_data_block[j]) ==
+                                    -1) {
+                                    inode_unlock(inum);
+                                    return -1;
+                                }
+                                indirect_data_block[j] = -1;
                             }
                         }
                         if (data_block_free(inode->i_indirect_data_block) ==
@@ -130,17 +134,14 @@ int tfs_close(int fhandle) { return remove_from_open_file_table(fhandle); }
 /* Returns how much was just written or -1 if an error occurs */
 ssize_t tfs_write_aux(size_t written, size_t to_write, void const *buffer,
                       int *blocks, size_t i, size_t block_offset) {
-    void *block = NULL;
     if (blocks[i] == -1) {
         int b = data_block_alloc();
         if (b == -1) {
             return -1;
         }
         blocks[i] = b;
-        block = data_block_get(b);
-    } else {
-        block = data_block_get(blocks[i]);
     }
+    void *block = data_block_get(blocks[i]);
     // write to block and increase written
     /* Perform the actual write */
 

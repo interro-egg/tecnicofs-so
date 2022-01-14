@@ -250,7 +250,7 @@ int inode_delete(int inumber) {
 
     if (inode_table[inumber].i_size > 0) {
         for (int i = 0; i < NUM_DIRECT_BLOCKS; i++) {
-            if (inode_table[inumber].i_direct_data_blocks[i] == -1 ||
+            if (inode_table[inumber].i_direct_data_blocks[i] != -1 &&
                 data_block_free(inode_table[inumber].i_direct_data_blocks[i]) ==
                     -1) {
                 rwlock_unlock(&inode_locks[inumber]);

@@ -1,0 +1,22 @@
+{
+	"C_Cpp.default.cStandard": "c17",
+	"C_Cpp.default.compilerArgs": [
+		"-Wall",
+		"-Werror",
+		"-Wextra",
+		"-Wcast-align",
+		"-Wconversion",
+		"-Wfloat-equal",
+		"-Wformat=2",
+		"-Wnull-dereference",
+		"-Wshadow",
+		"-Wsign-conversion",
+		"-Wswitch-default",
+		"-Wswitch-enum",
+		"-Wundef",
+		"-Wunreachable-code",
+		"-Wunused",
+		"-Wno-sign-compare",
+		"-D_POSIX_C_SOURCE=200809L"
+	]
+}

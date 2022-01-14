@@ -55,11 +55,13 @@ int tfs_open(char const *name, int flags) {
 
         /* Trucate (if requested) */
         if (flags & TFS_O_TRUNC) {
+            inode_rdlock(inum);
             if (inode->i_size > 0) {
                 for (int i = 0; i < NUM_DIRECT_BLOCKS; i++) {
                     if (inode->i_direct_data_blocks[i] != -1) {
                         if (data_block_free(inode->i_direct_data_blocks[i]) ==
                             -1) {
+                            inode_unlock(inum);
                             return -1;
                         }
                     }
@@ -67,26 +69,32 @@ int tfs_open(char const *name, int flags) {
                         int *indirect_data_block =
                             (int *)data_block_get(inode->i_indirect_data_block);
                         if (indirect_data_block == NULL) {
+                            inode_unlock(inum);
                             return -1;
                         }
                         for (int j = 0; j < NUM_INDIRECT_ENTRIES; j++) {
                             if (indirect_data_block[j] != -1 &&
                                 data_block_free(indirect_data_block[j]) == -1) {
+                                inode_unlock(inum);
                                 return -1;
                             }
                         }
                         if (data_block_free(inode->i_indirect_data_block) ==
                             -1) {
+                            inode_unlock(inum);
                             return -1;
                         }
                     }
                 }
                 inode->i_size = 0;
             }
+            inode_unlock(inum);
         }
         /* Determine initial offset */
         if (flags & TFS_O_APPEND) {
+            inode_rdlock(inum);
             offset = inode->i_size;
+            inode_unlock(inum);
         } else {
             offset = 0;
         }
@@ -146,15 +154,25 @@ ssize_t tfs_write_aux(size_t written, size_t to_write, void const *buffer,
 }
 
 ssize_t tfs_write(int fhandle, void const *buffer, size_t to_write) {
+
     open_file_entry_t *file = get_open_file_entry(fhandle);
     if (file == NULL) {
         return -1;
     }
 
+    fd_lock(fhandle);
+
     /* From the open file table entry, we get the inode */
     inode_t *inode = inode_get(file->of_inumber);
     if (inode == NULL) {
+        fd_unlock(fhandle);
         return -1;
+    }
+
+    inode_wrlock(file->of_inumber);
+
+    if (file->of_offset > inode->i_size) {
+        file->of_offset = inode->i_size;
     }
 
     /* Determine how many bytes to write */
@@ -163,13 +181,18 @@ ssize_t tfs_write(int fhandle, void const *buffer, size_t to_write) {
     }
 
     size_t written = 0; // maybe use file->of_offset?
+    size_t first_block = file->of_offset / BLOCK_SIZE;
 
-    for (size_t i = 0; i < NUM_DIRECT_BLOCKS && written < to_write; i++) {
+    for (size_t i = first_block; i < NUM_DIRECT_BLOCKS && written < to_write;
+         i++) {
         ssize_t just_written = tfs_write_aux(written, to_write, buffer,
                                              inode->i_direct_data_blocks, i,
                                              file->of_offset % BLOCK_SIZE);
         if (just_written == -1) {
-            inode->i_size += written;
+            if (file->of_offset > inode->i_size)
+                inode->i_size = file->of_offset;
+            inode_unlock(file->of_inumber);
+            fd_unlock(fhandle);
             return -1;
         }
         written += (size_t)just_written;
@@ -180,23 +203,42 @@ ssize_t tfs_write(int fhandle, void const *buffer, size_t to_write) {
         if (inode->i_indirect_data_block == -1) {
             int b = data_block_alloc();
             if (b == -1) {
-                inode->i_size += written;
+                if (file->of_offset > inode->i_size)
+                    inode->i_size = file->of_offset;
+                inode_unlock(file->of_inumber);
+                fd_unlock(fhandle);
                 return -1;
+            }
+            inode->i_indirect_data_block = b;
+            int *indirect_data_block =
+                (int *)data_block_get(inode->i_indirect_data_block);
+            if (indirect_data_block != NULL) {
+                for (int i = 0; i < BLOCK_SIZE / sizeof(int); ++i) {
+                    indirect_data_block[i] = -1;
+                }
             }
         }
         int *indirect_data_block =
             (int *)data_block_get(inode->i_indirect_data_block);
         if (indirect_data_block == NULL) {
-            inode->i_size += written;
+            if (file->of_offset > inode->i_size)
+                inode->i_size = file->of_offset;
+            inode_unlock(file->of_inumber);
+            fd_unlock(fhandle);
             return -1;
         }
-        for (size_t i = 0; i < NUM_INDIRECT_ENTRIES && written < to_write;
-             i++) {
+        size_t first_indirect_block =
+            (file->of_offset - NUM_DIRECT_BLOCKS * BLOCK_SIZE) / BLOCK_SIZE;
+        for (size_t i = first_indirect_block;
+             i < NUM_INDIRECT_ENTRIES && written < to_write; i++) {
             ssize_t just_written =
                 tfs_write_aux(written, to_write, buffer, indirect_data_block, i,
                               file->of_offset % BLOCK_SIZE);
             if (just_written == -1) {
-                inode->i_size += written;
+                if (file->of_offset > inode->i_size)
+                    inode->i_size = file->of_offset;
+                inode_unlock(file->of_inumber);
+                fd_unlock(fhandle);
                 return -1;
             }
             written += (size_t)just_written;
@@ -204,8 +246,12 @@ ssize_t tfs_write(int fhandle, void const *buffer, size_t to_write) {
         }
     }
 
-    inode->i_size =
-        file->of_offset; // in theory, the same as inode->i_size += written;
+    if (file->of_offset > inode->i_size) {
+        inode->i_size = file->of_offset;
+    }
+
+    inode_unlock(file->of_inumber);
+    fd_unlock(fhandle);
     return (ssize_t)written;
 }
 
@@ -235,10 +281,22 @@ ssize_t tfs_read(int fhandle, void *buffer, size_t len) {
         return -1;
     }
 
+    fd_lock(fhandle);
+
     /* From the open file table entry, we get the inode */
     inode_t *inode = inode_get(file->of_inumber);
     if (inode == NULL) {
+        fd_unlock(fhandle);
         return -1;
+    }
+
+    inode_rdlock(file->of_inumber);
+
+    if (file->of_offset > inode->i_size) {
+        // can't just check to_read < 0 because size_t is unsigned
+        inode_unlock(file->of_inumber);
+        fd_unlock(fhandle);
+        return 0;
     }
 
     /* Determine how many bytes to read */
@@ -249,11 +307,15 @@ ssize_t tfs_read(int fhandle, void *buffer, size_t len) {
 
     size_t read = 0;
 
-    for (size_t i = 0; i < NUM_DIRECT_BLOCKS && read < to_read; i++) {
+    size_t first_block = file->of_offset / BLOCK_SIZE;
+
+    for (size_t i = first_block; i < NUM_DIRECT_BLOCKS && read < to_read; i++) {
         ssize_t just_read =
             tfs_read_aux(read, to_read, buffer, inode->i_direct_data_blocks, i,
                          file->of_offset % BLOCK_SIZE);
         if (just_read == -1) {
+            inode_unlock(file->of_inumber);
+            fd_unlock(fhandle);
             return -1;
         }
         read += (size_t)just_read;
@@ -262,18 +324,28 @@ ssize_t tfs_read(int fhandle, void *buffer, size_t len) {
 
     if (read < to_read) { // need indirect blocks
         if (inode->i_indirect_data_block == -1) {
+            inode_unlock(file->of_inumber);
+            fd_unlock(fhandle);
             return -1;
         }
         int *indirect_data_block =
             (int *)data_block_get(inode->i_indirect_data_block);
         if (indirect_data_block == NULL) {
+            inode_unlock(file->of_inumber);
+            fd_unlock(fhandle);
             return -1;
         }
-        for (size_t i = 0; i < NUM_INDIRECT_ENTRIES && read < to_read; i++) {
+
+        size_t first_indirect_block =
+            (file->of_offset - NUM_DIRECT_BLOCKS * BLOCK_SIZE) / BLOCK_SIZE;
+        for (size_t i = first_indirect_block;
+             i < NUM_INDIRECT_ENTRIES && read < to_read; i++) {
             ssize_t just_read =
                 tfs_read_aux(read, to_read, buffer, indirect_data_block, i,
                              file->of_offset % BLOCK_SIZE);
             if (just_read == -1) {
+                inode_unlock(file->of_inumber);
+                fd_unlock(fhandle);
                 return -1;
             }
             read += (size_t)just_read;
@@ -281,42 +353,47 @@ ssize_t tfs_read(int fhandle, void *buffer, size_t len) {
         }
     }
 
+    inode_unlock(file->of_inumber);
+    fd_unlock(fhandle);
+
     return (ssize_t)to_read;
 }
 
 int tfs_copy_to_external_fs(char const *source_path, char const *dest_path) {
-    if (!valid_pathname(source_path))
-        return -1;
-
     int from = tfs_open(source_path, 0);
     if (from == -1)
         return -1; // file doesn't exist or error ocurred
 
-    int inumber = tfs_lookup(source_path);
-    if (inumber == -1)
-        return -1;
-
-    inode_t *inode = inode_get(inumber);
-    if (inode == NULL)
-        return -1;
-
-    size_t num_blocks = inode->i_size / BLOCK_SIZE;
-    size_t mod = inode->i_size % BLOCK_SIZE;
-
     FILE *to = fopen(dest_path, "w");
-    if (to == NULL)
+    if (to == NULL) {
+        // no need to check for errors because we're returning -1 anyway
+        tfs_close(from);
         return -1;
-
-    for (size_t i = 0; i <= num_blocks; i++) {
-        if (i < num_blocks || mod > 0) {
-            char buffer[BLOCK_SIZE];
-            tfs_read(from, buffer, BLOCK_SIZE);
-            size_t to_write = i < num_blocks ? BLOCK_SIZE / sizeof(char) : mod;
-            fwrite(buffer, sizeof(char), to_write, to);
-        }
     }
 
-    fclose(to);
-    tfs_close(from);
+    char buffer[BLOCK_SIZE]; // arbitrary size
+    ssize_t read;
+    while ((read = tfs_read(from, buffer, BLOCK_SIZE)) > 0) {
+        if (fwrite(buffer, sizeof(char), (size_t)read, to) != read) {
+            // no need to check the two calls below because we're returning an
+            // error anyway
+            fclose(to);
+            tfs_close(from);
+            return -1;
+        }
+
+        if (read < BLOCK_SIZE)
+            break;
+    }
+
+    if (fclose(to) != 0) {
+        // no need to check for errors since we're returning -1 anyway
+        tfs_close(from);
+        return -1;
+    }
+    if (tfs_close(from) == -1) {
+        return -1;
+    }
+
     return 0;
 }

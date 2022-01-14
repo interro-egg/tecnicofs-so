@@ -20,6 +20,8 @@ void *function(void *ipath) {
 
     assert(tfs_close(f) != -1);
 
+    free(str);
+
     pthread_exit(NULL);
 }
 
@@ -57,6 +59,8 @@ int main() {
     assert(strcmp(buffer, str) == 0);
 
     assert(tfs_close(f) != -1);
+
+    free(str);
 
     printf("Successful test.\n");
     return 0;

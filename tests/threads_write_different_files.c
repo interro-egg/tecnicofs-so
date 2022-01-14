@@ -24,6 +24,8 @@ void *function(void *ipath) {
 
     assert(tfs_close(f) != -1);
 
+    free(str);
+
     pthread_exit(NULL);
 }
 
@@ -48,6 +50,8 @@ void *function2(void *ipath) {
     assert(strcmp(buffer, str) == 0);
 
     assert(tfs_close(f) != -1);
+
+    free(str);
 
     pthread_exit(NULL);
 }

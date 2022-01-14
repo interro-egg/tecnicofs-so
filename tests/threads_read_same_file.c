@@ -3,11 +3,15 @@
 #include <pthread.h>
 #include <string.h>
 
+#define LEN 1555
+#define BUFFER_SIZE 4000
+#define THREADS 20
+
 void *function(void *istr) {
 
     char *str = (char *)istr;
     char *path = "/f1";
-    char buffer[4000];
+    char buffer[BUFFER_SIZE];
 
     int f;
     ssize_t r;
@@ -32,7 +36,7 @@ void *function(void *istr) {
 }
 
 int main() {
-    char *str = (char *)malloc(sizeof(char) * 1555);
+    char str[LEN];
     memset(str, 'A', 1555);
     char *path = "/f1";
 
@@ -45,11 +49,11 @@ int main() {
 
     r = tfs_write(f, str, strlen(str));
     assert(r == strlen(str));
-    pthread_t tid[20];
-    for (int i = 0; i < 20; i++) {
+    pthread_t tid[THREADS];
+    for (int i = 0; i < THREADS; i++) {
         pthread_create(&tid[i], NULL, &function, str);
     }
-    for (int i = 0; i < 20; i++) {
+    for (int i = 0; i < THREADS; i++) {
         pthread_join(tid[i], NULL);
     }
     printf("Successful test.\n");

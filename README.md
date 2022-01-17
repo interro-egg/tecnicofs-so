@@ -1,27 +1,11 @@
-Código base do projeto de Sistemas Operativos
-====================================
+# Operating Systems Project
 
-LEIC-A/LEIC-T/LETI, DEI/IST/ULisboa 2021-22
----------------------------------------------------------------
+Divided into two parts:
+    - [Exercise 1](https://github.com/interro-egg/tecnicofs-so/milestone/1) - [Statement](https://github.com/interro-egg/tecnicofs-so/blob/master/Enunciado-Ex1.pdf); and
+	- [Exercise 2](https://github.com/interro-egg/tecnicofs-so/milestone/2) - Statement.
 
-Consultar o enunciado publicado no site da disciplina
+Codebase was provided by professors.
 
-CHANGE LOG:
-============
+Use `make` (= `make all`), `make clean` or `make fmt`.
 
-**Versão 3**
------------------
-
-Várias extensões para suportar o desenvolvimento do 2º exercício (consultar o enunciado respetivo).
-
-**Versão 2**
------------------
-
-1. Removido um bloco “if” obsoleto na tfs_read (na v1, linhas 162-165 do operations.c): “if (file->of_offset + to_read >= BLOCK_SIZE) {...}”. Além de desnecessário, a condição continha um bug que poderia fazer com que uma leitura a um bloco cheio não devolvesse o resultado esperado.
-
-2. O ciclo de “insert_delay” na função inode_create (na v1, linha 93 do state.c na v1) foi retificado para passar a ter um número de iterações mais realista.
-O original (v1) era “if ((inumber * (int) sizeof(allocation_state_t)) == 0)”, passou para “if ((inumber * (int) sizeof(allocation_state_t) % BLOCK_SIZE) == 0)”.
-
-3. Removido um comentário obsoleto (na v1, linhas 159-160 do state.c).
-
-
+To be reminded to run `make fmt` when necessary, run `./setup_hooks.sh` once to set a pre-commit hook. This may change in the future to edit files in-place in addition to aborting the commit, as a convenience.

@@ -16,35 +16,34 @@
 int closed_file = 0;
 
 void *fn_thread(void *arg) {
-    (void)
-        arg; /* Since arg is not used, this line prevents a compiler warning */
+  (void)arg; /* Since arg is not used, this line prevents a compiler warning */
 
-    int f = tfs_open("/f1", TFS_O_CREAT);
-    assert(f != -1);
+  int f = tfs_open("/f1", TFS_O_CREAT);
+  assert(f != -1);
 
-    sleep(10);
+  sleep(10);
 
-    /* set *before* closing the file, so that it is set before
-       tfs_destroy_after_all_close returns in the main thread
-    */
-    closed_file = 1;
+  /* set *before* closing the file, so that it is set before
+     tfs_destroy_after_all_close returns in the main thread
+  */
+  closed_file = 1;
 
-    assert(tfs_close(f) != -1);
+  assert(tfs_close(f) != -1);
 
-    return NULL;
+  return NULL;
 }
 
 int main() {
 
-    assert(tfs_init() != -1);
+  assert(tfs_init() != -1);
 
-    pthread_t t;
-    assert(pthread_create(&t, NULL, fn_thread, NULL) == 0);
-    assert(tfs_destroy_after_all_closed() != -1);
-    assert(closed_file == 1);
+  pthread_t t;
+  assert(pthread_create(&t, NULL, fn_thread, NULL) == 0);
+  assert(tfs_destroy_after_all_closed() != -1);
+  assert(closed_file == 1);
 
-    // No need to join thread
-    printf("Successful test.\n");
+  // No need to join thread
+  printf("Successful test.\n");
 
-    return 0;
+  return 0;
 }

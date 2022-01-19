@@ -1,3 +1,5 @@
 *.o
 tests/*
 !tests/*.c
+.vscode
+fs/tfs_server

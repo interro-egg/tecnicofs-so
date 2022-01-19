@@ -6,6 +6,7 @@
 #include <string.h>
 
 static pthread_mutex_t single_global_lock;
+static bool closing;
 
 int tfs_init() {
   state_init();
@@ -18,6 +19,8 @@ int tfs_init() {
   if (root != ROOT_DIR_INUM) {
     return -1;
   }
+
+  closing = false;
 
   return 0;
 }
@@ -35,7 +38,11 @@ static bool valid_pathname(char const *name) {
 }
 
 int tfs_destroy_after_all_closed() {
-  /* TO DO: implement this */
+  closing = true;
+  if (wait_for_all_closed() == -1 || tfs_destroy() == -1) {
+    closing = false;
+    return -1;
+  }
   return 0;
 }
 
@@ -113,8 +120,11 @@ static int _tfs_open_unsynchronized(char const *name, int flags) {
 }
 
 int tfs_open(char const *name, int flags) {
+  if (closing)
+    return -1;
   if (pthread_mutex_lock(&single_global_lock) != 0)
     return -1;
+  open_file_table_increase_size();
   int ret = _tfs_open_unsynchronized(name, flags);
   if (pthread_mutex_unlock(&single_global_lock) != 0)
     return -1;

@@ -1,5 +1,6 @@
 #include "state.h"
 
+#include <pthread.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -20,7 +21,10 @@ static char free_blocks[DATA_BLOCKS];
 /* Volatile FS state */
 
 static open_file_entry_t open_file_table[MAX_OPEN_FILES];
+static int open_file_table_size = 0;
 static char free_open_file_entries[MAX_OPEN_FILES];
+static pthread_mutex_t open_file_table_size_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t all_files_closed;
 
 static inline bool valid_inumber(int inumber) {
   return inumber >= 0 && inumber < INODE_TABLE_SIZE;
@@ -335,4 +339,50 @@ open_file_entry_t *get_open_file_entry(int fhandle) {
     return NULL;
   }
   return &open_file_table[fhandle];
+}
+
+int open_file_table_increase_size() {
+  if (pthread_mutex_lock(&open_file_table_size_lock) != 0)
+    return -1;
+  int size = ++open_file_table_size;
+  if (pthread_mutex_unlock(&open_file_table_size_lock) != 0)
+    return -1;
+  return size;
+}
+
+int open_file_table_decrease_size() {
+  if (pthread_mutex_lock(&open_file_table_size_lock) != 0)
+    return -1;
+  int size = --open_file_table_size;
+  if (size < 0) {
+    // just to be safe
+    open_file_table_size = 0;
+  }
+  if (size <= 0)
+    if (pthread_cond_signal(&all_files_closed) != 0) {
+      // no need to check, already returning error
+      pthread_mutex_unlock(&open_file_table_size_lock);
+      return -1;
+    }
+
+  if (pthread_mutex_unlock(&open_file_table_size_lock) != 0)
+    return -1;
+  return size;
+}
+
+int wait_for_all_closed() {
+  if (pthread_mutex_lock(&open_file_table_size_lock) != 0)
+    return -1;
+  while (open_file_table_size > 0) {
+    if (pthread_cond_wait(&all_files_closed, &open_file_table_size_lock) != 0) {
+      // no need to check, already returning error
+      pthread_mutex_unlock(&open_file_table_size_lock);
+      return -1;
+    }
+  }
+
+  if (pthread_mutex_unlock(&open_file_table_size_lock) != 0)
+    return -1;
+
+  return 0;
 }

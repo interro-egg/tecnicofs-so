@@ -1,8 +1,9 @@
 # Operating Systems Project
 
 Divided into two parts:
-    - [Exercise 1](https://github.com/interro-egg/tecnicofs-so/milestone/1) - [Statement](https://github.com/interro-egg/tecnicofs-so/blob/exercise-1/Enunciado-Ex1.pdf); and
-	- [Exercise 2](https://github.com/interro-egg/tecnicofs-so/milestone/2) - [Statement](https://github.com/interro-egg/tecnicofs-so/blob/exercise-2/Enunciado-Ex2.pdf).
+
+-   [Exercise 1](https://github.com/interro-egg/tecnicofs-so/milestone/1) - [Statement](https://github.com/interro-egg/tecnicofs-so/blob/exercise-1/Enunciado-Ex1.pdf) - **[Branch](https://github.com/interro-egg/tecnicofs-so/blob/exercise-1)**; and
+-   [Exercise 2](https://github.com/interro-egg/tecnicofs-so/milestone/2) - [Statement](https://github.com/interro-egg/tecnicofs-so/blob/exercise-2/Enunciado-Ex2.pdf) - **[Branch](https://github.com/interro-egg/tecnicofs-so/blob/exercise-2)**.
 
 Codebase was provided by professors.
 

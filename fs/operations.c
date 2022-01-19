@@ -135,6 +135,7 @@ int tfs_open(char const *name, int flags) {
 int tfs_close(int fhandle) {
   if (pthread_mutex_lock(&single_global_lock) != 0)
     return -1;
+  open_file_table_decrease_size();
   int r = remove_from_open_file_table(fhandle);
   if (pthread_mutex_unlock(&single_global_lock) != 0)
     return -1;

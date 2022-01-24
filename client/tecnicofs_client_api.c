@@ -1,8 +1,40 @@
 #include "tecnicofs_client_api.h"
+#include <errno.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 int tfs_mount(char const *client_pipe_path, char const *server_pipe_path) {
-  /* TODO: Implement this */
-  return -1;
+  // remove pipe if it already exists
+  if (unlink(client_pipe_path) != 0 && errno != ENOENT) {
+    fprintf(stderr, "[ERR]: unlink(%s) failed: %s\n", client_pipe_path,
+            strerror(errno));
+    exit(EXIT_FAILURE);
+  }
+
+  // create pipe
+  if (mkfifo(client_pipe_path, 0640) != 0) {
+    fprintf(stderr, "[ERR]: mkfifo failed: %s\n", strerror(errno));
+    exit(EXIT_FAILURE);
+  }
+
+  // open pipe for writing
+  // this waits for someone to open it for reading
+  int tx = open(server_pipe_path, O_WRONLY);
+  if (tx == -1) {
+    fprintf(stderr, "[ERR]: open failed: %s\n", strerror(errno));
+    exit(EXIT_FAILURE);
+  }
+
+  char opcode = TFS_OP_CODE_MOUNT;
+  write(tx, &opcode, sizeof(char));
+
+  fprintf(stderr, "[INFO]: closing pipe\n");
+  close(tx);
+  return 0;
 }
 
 int tfs_unmount() {

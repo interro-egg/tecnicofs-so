@@ -22,6 +22,8 @@ static char free_blocks[DATA_BLOCKS];
 static open_file_entry_t open_file_table[MAX_OPEN_FILES];
 static char free_open_file_entries[MAX_OPEN_FILES];
 
+static char client_pipe_paths[MAX_SESSION_COUNT][MAX_PIPE_NAME_LENGTH];
+
 static inline bool valid_inumber(int inumber) {
   return inumber >= 0 && inumber < INODE_TABLE_SIZE;
 }

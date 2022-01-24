@@ -10,6 +10,9 @@
 #define MAX_OPEN_FILES (20)
 #define MAX_FILE_NAME (40)
 
+#define MAX_SESSION_COUNT (1) // S
+#define MAX_PIPE_NAME_LENGTH (40)
+
 #define DELAY (5000)
 
 #endif // CONFIG_H

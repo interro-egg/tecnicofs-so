@@ -65,7 +65,7 @@ int main(int argc, char **argv) {
       int tx = open(buffer, O_WRONLY);
       if (tx == -1) {
         fprintf(stderr, "[ERR]: client open failed: %s\n", strerror(errno));
-        exit(EXIT_FAILURE);
+        continue;
       }
 
       int session_id = -1;
@@ -82,7 +82,11 @@ int main(int argc, char **argv) {
 
       if (write(tx, &session_id, sizeof(int)) == -1) {
         fprintf(stderr, "[ERR]: write failed: %s\n", strerror(errno));
-        exit(EXIT_FAILURE);
+        lock_free_sessions();
+        free_sessions[session_id] = FREE;
+        unlock_free_sessions();
+        close(tx);
+        continue;
       } // TODO: write returns 0 if pipe closed
 
       break;
@@ -91,12 +95,12 @@ int main(int argc, char **argv) {
       int session_id;
       if (read(rx, &session_id, sizeof(int)) == -1) {
         fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
-        exit(EXIT_FAILURE);
+        continue;
       }
       int tx = client_pipe_fds[session_id];
       if (close(tx) == -1) {
         fprintf(stderr, "[ERR]: close failed: %s\n", strerror(errno));
-        exit(EXIT_FAILURE);
+        continue;
       }
       lock_free_sessions();
       free_sessions[session_id] = FREE;

@@ -35,12 +35,16 @@ int tfs_mount(char const *client_pipe_path, char const *server_pipe_path) {
   // TODO: check syscall
   memcpy(pipename, client_pipe_path, MAX_PIPE_NAME);
 
-  u_int8_t buffer[MAX_PIPE_NAME + 1];
+  char buffer[MAX_PIPE_NAME + 1];
   buffer[0] = TFS_OP_CODE_MOUNT;
   //  TODO: check syscalls
   memcpy(buffer + 1, client_pipe_path,
          (strlen(client_pipe_path) + 1) * sizeof(char));
-  write(tx, buffer, (MAX_PIPE_NAME + 1) * sizeof(char));
+  if (write(tx, buffer, (MAX_PIPE_NAME + 1) * sizeof(char)) == -1) {
+    fprintf(stderr, "[ERR]: write failed: %s\n", strerror(errno));
+    // TODO: close tx?
+    exit(EXIT_FAILURE);
+  }
 
   int rx = open(client_pipe_path, O_RDONLY);
   if (rx == -1) {

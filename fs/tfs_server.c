@@ -55,19 +55,32 @@ int main(int argc, char **argv) {
     switch (opcode) {
     case TFS_OP_CODE_MOUNT: {
       char buffer[MAX_PIPE_NAME];
-      // TODO: check syscall
-      read(rx, buffer, MAX_PIPE_NAME * sizeof(u_int8_t));
+      if (read(rx, buffer, MAX_PIPE_NAME * sizeof(char)) == -1) {
+        fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
+        exit(EXIT_FAILURE);
+      } // TODO: read returns 0 if pipe closed
       int tx = open(buffer, O_WRONLY);
+      if (tx == -1) {
+        fprintf(stderr, "[ERR]: client open failed: %s\n", strerror(errno));
+        exit(EXIT_FAILURE);
+      }
+
+      int session_id = -1;
       for (int i = 0; i < MAX_SESSION_COUNT; i++) {
         // TODO: locks?
         if (free_sessions[i] == FREE) {
           free_sessions[i] = TAKEN;
           client_pipe_fds[i] = tx;
-          write(tx, &i, sizeof(int));
+          session_id = i;
           break;
         }
       }
-      // TODO: if no free sessions
+
+      if (write(tx, &session_id, sizeof(int)) == -1) {
+        fprintf(stderr, "[ERR]: write failed: %s\n", strerror(errno));
+        exit(EXIT_FAILURE);
+      } // TODO: write returns 0 if pipe closed
+
       break;
     }
     case TFS_OP_CODE_UNMOUNT: {

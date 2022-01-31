@@ -7,8 +7,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-int client;
-int server;
+int client, server, session_id;
 
 int tfs_mount(char const *client_pipe_path, char const *server_pipe_path)
 {
@@ -39,12 +38,12 @@ int tfs_mount(char const *client_pipe_path, char const *server_pipe_path)
 	}
 	server = tx;
 	client = rx;
-	char buffer[MAX_PIPE_NAME + sizeof(char)];
+	u_int8_t buffer[MAX_PIPE_NAME + 1];
 	buffer[0] = TFS_OP_CODE_MOUNT;
 	// TODO: check syscalls
-	memcpy(buffer + 1, client_pipe_path, strlen(client_pipe_path) + 1);
-	write(tx, buffer, MAX_PIPE_NAME + sizeof(char));
-	read(rx, pila, pila_length);
+	memcpy(buffer + 1, client_pipe_path, (strlen(client_pipe_path) + 1) * sizeof(char));
+	write(tx, buffer, (MAX_PIPE_NAME + 1) * sizeof(char));
+	read(rx, &session_id, sizeof(int));
 	return 0;
 }
 

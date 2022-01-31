@@ -63,7 +63,7 @@ int main(int argc, char **argv)
 				if (free_sessions[i] == FREE) {
 					free_sessions[i] = TAKEN;
 					client_pipe_fds[i] = tx;
-					write(tx, i, sizeof(int));
+					write(tx, &i, sizeof(int));
 					break;
 				}
 			}

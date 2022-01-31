@@ -30,20 +30,25 @@ int tfs_mount(char const *client_pipe_path, char const *server_pipe_path) {
     fprintf(stderr, "[ERR]: server open failed: %s\n", strerror(errno));
     exit(EXIT_FAILURE);
   }
-  int rx = open(server_pipe_path, O_RDONLY);
-  if (rx == -1) {
-    fprintf(stderr, "[ERR]: client open failed: %s\n", strerror(errno));
-    exit(EXIT_FAILURE);
-  }
   server = tx;
-  client = rx;
+
   u_int8_t buffer[MAX_PIPE_NAME + 1];
   buffer[0] = TFS_OP_CODE_MOUNT;
-  // TODO: check syscalls
+  //  TODO: check syscalls
   memcpy(buffer + 1, client_pipe_path,
          (strlen(client_pipe_path) + 1) * sizeof(char));
   write(tx, buffer, (MAX_PIPE_NAME + 1) * sizeof(char));
+
+  int rx = open(client_pipe_path, O_RDONLY);
+  if (rx == -1) {
+    fprintf(stderr, "[ERR]: client open failed: %s\n", strerror(errno));
+    // TODO: close tx?
+    exit(EXIT_FAILURE);
+  }
+  client = rx;
   read(rx, &session_id, sizeof(int));
+
+  printf("[INFO]: session id: %d\n", session_id);
   return 0;
 }
 

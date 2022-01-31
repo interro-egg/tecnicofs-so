@@ -39,7 +39,7 @@ int main(int argc, char **argv) {
 
   for (;;) {
     char opcode;
-    ssize_t ret = read(rx, &opcode, sizeof(char)); // FIXME: this might not work
+    ssize_t ret = read(rx, &opcode, sizeof(u_int8_t));
     if (ret == 0) {
       // ret == 0 signals EOF
       fprintf(stderr, "[INFO]: pipe closed\n"); // FIXME: remove this
@@ -56,9 +56,10 @@ int main(int argc, char **argv) {
     case TFS_OP_CODE_MOUNT: {
       char buffer[MAX_PIPE_NAME];
       // TODO: check syscall
-      read(rx, buffer, MAX_PIPE_NAME);
+      read(rx, buffer, MAX_PIPE_NAME * sizeof(u_int8_t));
       int tx = open(buffer, O_WRONLY);
       for (int i = 0; i < MAX_SESSION_COUNT; i++) {
+        // TODO: locks?
         if (free_sessions[i] == FREE) {
           free_sessions[i] = TAKEN;
           client_pipe_fds[i] = tx;

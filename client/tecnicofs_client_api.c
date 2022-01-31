@@ -32,18 +32,16 @@ int tfs_mount(char const *client_pipe_path, char const *server_pipe_path) {
     return -1;
   }
   server = tx;
-  // TODO: check syscall
   memcpy(pipename, client_pipe_path, MAX_PIPE_NAME);
 
   char buffer[MAX_PIPE_NAME + 1];
   buffer[0] = TFS_OP_CODE_MOUNT;
-  //  TODO: check syscalls
   memcpy(buffer + 1, client_pipe_path,
          (strlen(client_pipe_path) + 1) * sizeof(char));
   if (write(tx, buffer, (MAX_PIPE_NAME + 1) * sizeof(char)) == -1) {
     fprintf(stderr, "[ERR]: write failed: %s\n", strerror(errno));
     // TODO: close tx?
-    exit(EXIT_FAILURE);
+    return -1;
   }
 
   int rx = open(client_pipe_path, O_RDONLY);
@@ -53,7 +51,12 @@ int tfs_mount(char const *client_pipe_path, char const *server_pipe_path) {
     return -1;
   }
   client = rx;
-  read(rx, &session_id, sizeof(int));
+
+  if (read(rx, &session_id, sizeof(int)) == -1) {
+    fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
+    // TODO: close tx?
+    return -1;
+  }
 
   printf("[INFO]: session id: %d\n", session_id);
   return 0;
@@ -63,9 +66,12 @@ int tfs_unmount() {
   /* TODO: Implement this */
   char buffer[1 + SESSION_ID_LENGTH];
   buffer[0] = TFS_OP_CODE_UNMOUNT;
-  // TODO: check syscalls
+
   memcpy(buffer + 1, &session_id, SESSION_ID_LENGTH);
-  write(server, buffer, (1 + SESSION_ID_LENGTH) * sizeof(char));
+  if (write(server, buffer, (1 + SESSION_ID_LENGTH) * sizeof(char)) == -1) {
+    fprintf(stderr, "[ERR]: write failed: %s\n", strerror(errno));
+    return -1;
+  }
   if (close(server) == -1) {
     fprintf(stderr, "[ERR]: server close failed: %s\n", strerror(errno));
     return -1;

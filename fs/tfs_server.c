@@ -1,12 +1,15 @@
+#include "tfs_server.h"
 #include "operations.h"
 #include <errno.h>
 #include <fcntl.h>
+#include <pthread.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
 int client_pipe_fds[MAX_SESSION_COUNT];
 allocation_state_t free_sessions[MAX_SESSION_COUNT] = {FREE};
+pthread_mutex_t free_sessions_lock = PTHREAD_MUTEX_INITIALIZER;
 
 int main(int argc, char **argv) {
 
@@ -66,8 +69,8 @@ int main(int argc, char **argv) {
       }
 
       int session_id = -1;
+      lock_free_sessions();
       for (int i = 0; i < MAX_SESSION_COUNT; i++) {
-        // TODO: locks?
         if (free_sessions[i] == FREE) {
           free_sessions[i] = TAKEN;
           client_pipe_fds[i] = tx;
@@ -75,6 +78,7 @@ int main(int argc, char **argv) {
           break;
         }
       }
+      unlock_free_sessions();
 
       if (write(tx, &session_id, sizeof(int)) == -1) {
         fprintf(stderr, "[ERR]: write failed: %s\n", strerror(errno));
@@ -94,7 +98,9 @@ int main(int argc, char **argv) {
         fprintf(stderr, "[ERR]: close failed: %s\n", strerror(errno));
         exit(EXIT_FAILURE);
       }
+      lock_free_sessions();
       free_sessions[session_id] = FREE;
+      unlock_free_sessions();
       break;
     }
     case TFS_OP_CODE_OPEN: {
@@ -125,5 +131,21 @@ int main(int argc, char **argv) {
 
   close(rx);
 
+  pthread_mutex_destroy(&free_sessions_lock);
+
   return 0;
+}
+
+void lock_free_sessions() {
+  if (pthread_mutex_lock(&free_sessions_lock) != 0) {
+    fprintf(stderr, "[ERR]: pthread_mutex_lock failed: %s\n", strerror(errno));
+    exit(EXIT_FAILURE);
+  }
+}
+
+void unlock_free_sessions() {
+  if (pthread_mutex_unlock(&free_sessions_lock) != 0) {
+    fprintf(stderr, "[ERR]: pthread_mutex_lock failed: %s\n", strerror(errno));
+    exit(EXIT_FAILURE);
+  }
 }

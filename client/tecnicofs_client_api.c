@@ -40,21 +40,21 @@ int tfs_mount(char const *client_pipe_path, char const *server_pipe_path) {
          (strlen(client_pipe_path) + 1) * sizeof(char));
   if (write(tx, buffer, (MAX_PIPE_NAME + 1) * sizeof(char)) == -1) {
     fprintf(stderr, "[ERR]: write failed: %s\n", strerror(errno));
-    // TODO: close tx?
+    close(tx); // already returning error, no need to check
     return -1;
   }
 
   int rx = open(client_pipe_path, O_RDONLY);
   if (rx == -1) {
     fprintf(stderr, "[ERR]: client open failed: %s\n", strerror(errno));
-    // TODO: close tx?
+    close(tx); // already returning error, no need to check
     return -1;
   }
   client = rx;
 
   if (read(rx, &session_id, sizeof(int)) == -1) {
     fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
-    // TODO: close tx?
+    close(tx); // already returning error, no need to check
     return -1;
   }
 

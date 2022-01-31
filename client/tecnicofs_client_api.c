@@ -8,19 +8,20 @@
 #include <unistd.h>
 
 int client, server, session_id;
+char pipename[MAX_PIPE_NAME];
 
 int tfs_mount(char const *client_pipe_path, char const *server_pipe_path) {
   // remove pipe if it already exists
   if (unlink(client_pipe_path) != 0 && errno != ENOENT) {
     fprintf(stderr, "[ERR]: unlink(%s) failed: %s\n", client_pipe_path,
             strerror(errno));
-    exit(EXIT_FAILURE);
+    return -1;
   }
 
   // create pipe
   if (mkfifo(client_pipe_path, 0640) != 0) {
     fprintf(stderr, "[ERR]: mkfifo failed: %s\n", strerror(errno));
-    exit(EXIT_FAILURE);
+    return -1;
   }
 
   // open pipe for writing
@@ -28,9 +29,11 @@ int tfs_mount(char const *client_pipe_path, char const *server_pipe_path) {
   int tx = open(server_pipe_path, O_WRONLY);
   if (tx == -1) {
     fprintf(stderr, "[ERR]: server open failed: %s\n", strerror(errno));
-    exit(EXIT_FAILURE);
+    return -1;
   }
   server = tx;
+  // TODO: check syscall
+  memcpy(pipename, client_pipe_path, MAX_PIPE_NAME);
 
   u_int8_t buffer[MAX_PIPE_NAME + 1];
   buffer[0] = TFS_OP_CODE_MOUNT;
@@ -43,7 +46,7 @@ int tfs_mount(char const *client_pipe_path, char const *server_pipe_path) {
   if (rx == -1) {
     fprintf(stderr, "[ERR]: client open failed: %s\n", strerror(errno));
     // TODO: close tx?
-    exit(EXIT_FAILURE);
+    return -1;
   }
   client = rx;
   read(rx, &session_id, sizeof(int));
@@ -54,7 +57,21 @@ int tfs_mount(char const *client_pipe_path, char const *server_pipe_path) {
 
 int tfs_unmount() {
   /* TODO: Implement this */
-  return -1;
+  char buffer[1 + SESSION_ID_LENGTH];
+  buffer[0] = TFS_OP_CODE_UNMOUNT;
+  // TODO: check syscalls
+  memcpy(buffer + 1, &session_id, SESSION_ID_LENGTH);
+  write(server, buffer, (1 + SESSION_ID_LENGTH) * sizeof(char));
+  if (close(server) == -1) {
+    fprintf(stderr, "[ERR]: server close failed: %s\n", strerror(errno));
+    return -1;
+  }
+  if (unlink(pipename) != 0) {
+    fprintf(stderr, "[ERR]: unlink(%s) failed: %s\n", pipename,
+            strerror(errno));
+    return -1;
+  }
+  return 0;
 }
 
 int tfs_open(char const *name, int flags) {

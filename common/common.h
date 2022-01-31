@@ -20,5 +20,6 @@ enum {
 };
 
 #define MAX_PIPE_NAME (40)
+#define SESSION_ID_LENGTH (sizeof(int) / sizeof(char))
 
 #endif /* COMMON_H */

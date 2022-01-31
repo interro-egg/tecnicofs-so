@@ -71,7 +71,17 @@ int main(int argc, char **argv) {
       break;
     }
     case TFS_OP_CODE_UNMOUNT: {
-      printf("unmounting\n");
+      int session_id;
+      if (read(rx, &session_id, sizeof(int)) == -1) {
+        fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
+        exit(EXIT_FAILURE);
+      }
+      int tx = client_pipe_fds[session_id];
+      if (close(tx) == -1) {
+        fprintf(stderr, "[ERR]: close failed: %s\n", strerror(errno));
+        exit(EXIT_FAILURE);
+      }
+      free_sessions[session_id] = FREE;
       break;
     }
     case TFS_OP_CODE_OPEN: {

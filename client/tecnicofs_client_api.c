@@ -146,13 +146,38 @@ ssize_t tfs_write(int fhandle, void const *buffer, size_t len) {
     fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
     return -1;
   }
-  printf("[INFO]: size is:  %d\n", size);
+  printf("[INFO]: write size is:  %ld\n", size);
   return size;
 }
 
 ssize_t tfs_read(int fhandle, void *buffer, size_t len) {
-  /* TODO: Implement this */
-  return -1;
+  ssize_t size;
+  char pipe_buffer[1 + SESSION_ID_LENGTH + FHANDLE_LENGTH + SIZE_LENGTH];
+  pipe_buffer[0] = TFS_OP_CODE_READ;
+  memcpy(pipe_buffer + 1, &session_id, SESSION_ID_LENGTH);
+  memcpy(pipe_buffer + 1 + SESSION_ID_LENGTH, &fhandle, FHANDLE_LENGTH);
+  memcpy(pipe_buffer + 1 + SESSION_ID_LENGTH + FHANDLE_LENGTH, &len,
+         SIZE_LENGTH);
+  if (write(server, pipe_buffer,
+            (1 + SESSION_ID_LENGTH + FHANDLE_LENGTH + SIZE_LENGTH) *
+                sizeof(char)) == -1) {
+    fprintf(stderr, "[ERR]: write failed: %s\n", strerror(errno));
+    return -1;
+  }
+  if (read(client, &size, sizeof(ssize_t)) == -1) {
+    fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
+    return -1;
+  }
+  if (size == -1) {
+    return size;
+  }
+  if (read(client, buffer, (size_t)size) == -1) {
+    fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
+    return -1;
+  }
+  printf("[INFO]: read size is:  %ld\n", size);
+  printf("[INFO]: read content is:  %s\n", buffer);
+  return size;
 }
 
 int tfs_shutdown_after_all_closed() {

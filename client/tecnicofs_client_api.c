@@ -34,7 +34,7 @@ int tfs_mount(char const *client_pipe_path, char const *server_pipe_path) {
   server = tx;
   memcpy(pipename, client_pipe_path, MAX_PIPE_NAME);
 
-  char buffer[1 + MAX_PIPE_NAME];
+  char buffer[1 + MAX_PIPE_NAME] = {'\0'};
   buffer[0] = TFS_OP_CODE_MOUNT;
   memcpy(buffer + 1, client_pipe_path,
          (strlen(client_pipe_path) + 1) * sizeof(char));
@@ -64,7 +64,7 @@ int tfs_mount(char const *client_pipe_path, char const *server_pipe_path) {
 }
 
 int tfs_unmount() {
-  char buffer[1 + SESSION_ID_LENGTH];
+  char buffer[1 + SESSION_ID_LENGTH] = {'\0'};
   buffer[0] = TFS_OP_CODE_UNMOUNT;
 
   memcpy(buffer + 1, &session_id, SESSION_ID_LENGTH);
@@ -88,7 +88,7 @@ int tfs_unmount() {
 int tfs_open(char const *name, int flags) {
   /* TODO: Implement this */
   int fd;
-  char buffer[1 + SESSION_ID_LENGTH + MAX_FILE_NAME + FLAGS_LENGTH];
+  char buffer[1 + SESSION_ID_LENGTH + MAX_FILE_NAME + FLAGS_LENGTH] = {'\0'};
   buffer[0] = TFS_OP_CODE_OPEN;
   memcpy(buffer + 1, &session_id, SESSION_ID_LENGTH);
   memcpy(buffer + 1 + SESSION_ID_LENGTH, name,

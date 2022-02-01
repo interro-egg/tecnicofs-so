@@ -181,6 +181,17 @@ ssize_t tfs_read(int fhandle, void *buffer, size_t len) {
 }
 
 int tfs_shutdown_after_all_closed() {
-  /* TODO: Implement this */
-  return -1;
+  int ret;
+  char buffer[1 + SESSION_ID_LENGTH];
+  buffer[0] = TFS_OP_CODE_SHUTDOWN_AFTER_ALL_CLOSED;
+  memcpy(buffer + 1, &session_id, SESSION_ID_LENGTH);
+  if (write(server, buffer, (1 + SESSION_ID_LENGTH) * sizeof(char)) == -1) {
+    fprintf(stderr, "[ERR]: write failed: %s\n", strerror(errno));
+    return -1;
+  }
+  if (read(client, &ret, sizeof(int)) == -1) {
+    fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
+    return -1;
+  }
+  return ret;
 }

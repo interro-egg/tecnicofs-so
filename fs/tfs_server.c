@@ -217,7 +217,18 @@ int main(int argc, char **argv) {
       break;
     }
     case TFS_OP_CODE_SHUTDOWN_AFTER_ALL_CLOSED: {
-      printf("shutting down\n");
+      int session_id, client, ret;
+      if (read(server, &session_id, sizeof(int)) == -1) {
+        fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
+        continue;
+      }
+      client = client_pipe_fds[session_id];
+      ret = tfs_destroy_after_all_closed();
+      printf("[INFO]: tfs_shutdown_after_all_closed returned %d\n", ret);
+      if (write(client, &ret, sizeof(int)) == -1) {
+        fprintf(stderr, "[ERR]: write failed: %s\n", strerror(errno));
+        continue;
+      }
       break;
     }
     default: {
@@ -226,8 +237,12 @@ int main(int argc, char **argv) {
     }
   }
 
-  close(server);
-
+  close(server); // no need to check, we are exiting anyway
+  for (int i = 0; i < MAX_SESSION_COUNT; i++) {
+    if (free_sessions[i] == TAKEN) {
+      close(client_pipe_fds[i]);
+    }
+  }
   pthread_mutex_destroy(&free_sessions_lock);
 
   return 0;

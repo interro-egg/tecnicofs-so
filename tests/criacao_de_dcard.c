@@ -9,7 +9,9 @@
 
 int main(int argc, char **argv) {
 
+  char *str = "AAA!";
   char *path = "/f1";
+  ssize_t r;
 
   if (argc < 3) {
     printf("You must provide the following arguments: 'client_pipe_path "
@@ -22,8 +24,8 @@ int main(int argc, char **argv) {
   int f = tfs_open(path, TFS_O_CREAT);
   assert(f != -1);
 
-  /* r = tfs_write(f, str, strlen(str));
-assert(r == strlen(str));*/
+  r = tfs_write(f, str, strlen(str));
+  assert(r == strlen(str));
 
   assert(tfs_close(f) != -1);
 

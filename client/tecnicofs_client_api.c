@@ -86,7 +86,6 @@ int tfs_unmount() {
 }
 
 int tfs_open(char const *name, int flags) {
-  /* TODO: Implement this */
   int fd;
   char buffer[1 + SESSION_ID_LENGTH + MAX_FILE_NAME + FLAGS_LENGTH] = {'\0'};
   buffer[0] = TFS_OP_CODE_OPEN;
@@ -128,8 +127,27 @@ int tfs_close(int fhandle) {
 }
 
 ssize_t tfs_write(int fhandle, void const *buffer, size_t len) {
-  /* TODO: Implement this */
-  return -1;
+  ssize_t size;
+  char pipe_buffer[1 + SESSION_ID_LENGTH + FHANDLE_LENGTH + SIZE_LENGTH + len];
+  pipe_buffer[0] = TFS_OP_CODE_WRITE;
+  memcpy(pipe_buffer + 1, &session_id, SESSION_ID_LENGTH);
+  memcpy(pipe_buffer + 1 + SESSION_ID_LENGTH, &fhandle, FHANDLE_LENGTH);
+  memcpy(pipe_buffer + 1 + SESSION_ID_LENGTH + FHANDLE_LENGTH, &len,
+         SIZE_LENGTH);
+  memcpy(pipe_buffer + 1 + SESSION_ID_LENGTH + FHANDLE_LENGTH + SIZE_LENGTH,
+         buffer, len);
+  if (write(server, pipe_buffer,
+            (1 + SESSION_ID_LENGTH + FHANDLE_LENGTH + SIZE_LENGTH + len) *
+                sizeof(char)) == -1) {
+    fprintf(stderr, "[ERR]: write failed: %s\n", strerror(errno));
+    return -1;
+  }
+  if (read(client, &size, sizeof(ssize_t)) == -1) {
+    fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
+    return -1;
+  }
+  printf("[INFO]: size is:  %d\n", size);
+  return size;
 }
 
 ssize_t tfs_read(int fhandle, void *buffer, size_t len) {

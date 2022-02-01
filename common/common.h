@@ -20,9 +20,10 @@ enum {
 };
 
 #define MAX_PIPE_NAME (40 + 1)
-#define MAX_FILE_NAME (40 + 1)
+#define MAX_FILE_NAME (40)
 #define SESSION_ID_LENGTH (sizeof(int) / sizeof(char))
 #define FLAGS_LENGTH (sizeof(int) / sizeof(char))
 #define FHANDLE_LENGTH (sizeof(int) / sizeof(char))
+#define SIZE_LENGTH (sizeof(size_t) / sizeof(char))
 
 #endif /* COMMON_H */

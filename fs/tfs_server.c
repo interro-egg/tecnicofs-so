@@ -44,7 +44,6 @@ int main(int argc, char **argv) {
 
   for (;;) {
     char opcode;
-    int session_id, client;
     ssize_t ret = read(server, &opcode, sizeof(u_int8_t));
     if (ret == 0) {
       // ret == 0 signals EOF
@@ -56,10 +55,11 @@ int main(int argc, char **argv) {
       exit(EXIT_FAILURE);
     }
 
-    fprintf(stderr, "[INFO]: received %zd B\n", ret);
+    fprintf(stderr, "[INFO]: reading opcode: %d \n", opcode);
 
     switch (opcode) {
     case TFS_OP_CODE_MOUNT: {
+      int session_id, client;
       char buffer[MAX_PIPE_NAME];
       if (read(server, buffer, MAX_PIPE_NAME * sizeof(char)) == -1) {
         fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
@@ -94,6 +94,7 @@ int main(int argc, char **argv) {
       break;
     }
     case TFS_OP_CODE_UNMOUNT: {
+      int session_id, client;
       if (read(server, &session_id, sizeof(int)) == -1) {
         fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
         continue;
@@ -110,7 +111,7 @@ int main(int argc, char **argv) {
     }
     case TFS_OP_CODE_OPEN: {
       char buffer[MAX_FILE_NAME];
-      int flags;
+      int flags, session_id, client;
       if (read(server, &session_id, sizeof(int)) == -1) {
         fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
         continue;
@@ -125,6 +126,7 @@ int main(int argc, char **argv) {
         continue;
       }
       int fd = tfs_open(buffer, flags);
+      printf("[INFO]: tfs_open(%s, %d) returned %d\n", buffer, flags, fd);
       if (write(client, &fd, sizeof(int)) == -1) {
         fprintf(stderr, "[ERR]: write failed: %s\n", strerror(errno));
         continue;
@@ -132,7 +134,7 @@ int main(int argc, char **argv) {
       break;
     }
     case TFS_OP_CODE_CLOSE: {
-      int fd;
+      int fd, session_id, client;
       if (read(server, &session_id, sizeof(int)) == -1) {
         fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
         continue;
@@ -143,6 +145,7 @@ int main(int argc, char **argv) {
         continue;
       }
       int retval = tfs_close(fd);
+      printf("[INFO]: tfs_close returned %d\n", retval);
       if (write(client, &retval, sizeof(int)) == -1) {
         fprintf(stderr, "[ERR]: write failed: %s\n", strerror(errno));
         continue;
@@ -150,7 +153,34 @@ int main(int argc, char **argv) {
       break;
     }
     case TFS_OP_CODE_WRITE: {
-      printf("writing\n");
+      int fd, session_id, client;
+      size_t size;
+      ssize_t written;
+      if (read(server, &session_id, sizeof(int)) == -1) {
+        fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
+        continue;
+      }
+      client = client_pipe_fds[session_id];
+      if (read(server, &fd, FHANDLE_LENGTH * sizeof(char)) == -1) {
+        fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
+        continue;
+      }
+      // TODO: check if size > 1024 ?
+      if (read(server, &size, SIZE_LENGTH * sizeof(char)) == -1) {
+        fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
+        continue;
+      }
+      char *to_write = (char *)malloc(size * sizeof(char));
+      if (read(server, to_write, size * sizeof(char)) == -1) {
+        fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
+        continue;
+      }
+      written = tfs_write(fd, to_write, size);
+      printf("[INFO]: written %zd B\n", written);
+      if (write(client, &written, sizeof(ssize_t)) == -1) {
+        fprintf(stderr, "[ERR]: write failed: %s\n", strerror(errno));
+        continue;
+      }
       break;
     }
     case TFS_OP_CODE_READ: {

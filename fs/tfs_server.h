@@ -2,7 +2,14 @@
 #define TFS_SERVER_H
 
 #include "common/common.h"
+#include "operations.h"
+#include <errno.h>
+#include <fcntl.h>
+#include <pthread.h>
 #include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 /* struct to pass parsed data from main to worker threads */
 typedef struct {

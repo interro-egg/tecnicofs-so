@@ -1,11 +1,6 @@
 #include "tfs_server.h"
-#include "operations.h"
-#include <errno.h>
-#include <fcntl.h>
-#include <pthread.h>
-#include <string.h>
-#include <sys/stat.h>
-#include <unistd.h>
+#include "server_handlers.h"
+#include "server_parsers.h"
 
 int server_pipe_fd;
 int client_pipe_fds[MAX_SESSION_COUNT];

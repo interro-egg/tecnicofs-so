@@ -1,11 +1,4 @@
 #include "tecnicofs_client_api.h"
-#include <errno.h>
-#include <fcntl.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/stat.h>
-#include <unistd.h>
 
 int client, server, session_id;
 char pipename[MAX_PIPE_NAME];

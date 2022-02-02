@@ -14,7 +14,7 @@ allocation_state_t free_sessions[MAX_SESSION_COUNT] = {FREE};
 pthread_mutex_t free_sessions_lock = PTHREAD_MUTEX_INITIALIZER;
 
 int dispatch(int opcode, int session_id,
-             int (*parser)(tfs_session_data_t *data),
+             int (*parser)(int server_pipe_fd, tfs_session_data_t *data),
              int (*handler)(tfs_session_data_t *data)) {
 
   lock_free_sessions();
@@ -29,7 +29,7 @@ int dispatch(int opcode, int session_id,
   data->session_id = session_id;
   data->opcode = opcode;
 
-  if (parser(data) == -1) {
+  if (parser(server_pipe_fd, data) == -1) {
     fprintf(stderr, "[ERR]: parser (opcode=%d) failed\n", opcode);
     free(data);
     return -1;

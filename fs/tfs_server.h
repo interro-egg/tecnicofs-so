@@ -6,18 +6,23 @@
 
 /* struct to pass parsed data from main to worker threads */
 typedef struct {
-  int opcode;
+  // persistent
   int session_id;
+  int client_pipe_fd;
+
+  // current request data
+  int opcode;
   char client_pipe_path[MAX_PIPE_NAME];
   char name[MAX_FILE_NAME];
   int flags;
   int fhandle;
   size_t len;
   char *buffer; // char[len]
-} tfs_request_t;
+} tfs_session_data_t;
 
-int dispatch(int opcode, int (*parser)(tfs_request_t *req),
-             int (*handler)(tfs_request_t *req));
+int dispatch(int opcode, int session_id,
+             int (*parser)(tfs_session_data_t *data),
+             int (*handler)(tfs_session_data_t *data));
 void lock_free_sessions();
 void unlock_free_sessions();
 

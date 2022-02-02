@@ -9,28 +9,35 @@
 
 int server_pipe_fd;
 int client_pipe_fds[MAX_SESSION_COUNT];
+tfs_session_data_t session_data[MAX_SESSION_COUNT];
 allocation_state_t free_sessions[MAX_SESSION_COUNT] = {FREE};
 pthread_mutex_t free_sessions_lock = PTHREAD_MUTEX_INITIALIZER;
 
-int dispatch(int opcode, int (*parser)(tfs_request_t *req),
-             int (*handler)(tfs_request_t *req)) {
-  tfs_request_t *req = (tfs_request_t *)malloc(sizeof(tfs_request_t));
-  if (req == NULL) {
-    fprintf(stderr, "[ERR]: malloc failed: %s\n", strerror(errno));
+int dispatch(int opcode, int session_id,
+             int (*parser)(tfs_session_data_t *data),
+             int (*handler)(tfs_session_data_t *data)) {
+
+  lock_free_sessions();
+  if (free_sessions[session_id] != TAKEN) {
+    unlock_free_sessions();
     return -1;
   }
+  unlock_free_sessions();
 
-  req->opcode = opcode;
+  tfs_session_data_t *data = &session_data[session_id];
 
-  if (parser(req) == -1) {
+  data->session_id = session_id;
+  data->opcode = opcode;
+
+  if (parser(data) == -1) {
     fprintf(stderr, "[ERR]: parser (opcode=%d) failed\n", opcode);
-    free(req);
+    free(data);
     return -1;
   }
 
-  if (handler(req) == -1) {
+  if (handler(data) == -1) {
     fprintf(stderr, "[ERR]: handler (opcode=%d) failed\n", opcode);
-    free(req);
+    free(data);
     return -1;
   }
 
@@ -233,11 +240,13 @@ int main(int argc, char **argv) {
   }
 
   close(server_pipe_fd); // no need to check, we are exiting anyway
+  lock_free_sessions();
   for (int i = 0; i < MAX_SESSION_COUNT; i++) {
     if (free_sessions[i] == TAKEN) {
-      close(client_pipe_fds[i]);
+      close(session_data[i].client_pipe_fd);
     }
   }
+  unlock_free_sessions();
   pthread_mutex_destroy(&free_sessions_lock);
 
   return 0;

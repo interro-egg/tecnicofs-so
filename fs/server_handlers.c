@@ -21,3 +21,16 @@ int handle_tfs_mount(tfs_session_data_t *data) {
 int handle_tfs_unmount(tfs_session_data_t *data) {
   return close(data->client_pipe_fd);
 }
+
+int handle_tfs_open(tfs_session_data_t *data) {
+  int fd = tfs_open(data->name, data->flags);
+  return write_client_pipe(data->client_pipe_fd, &fd, sizeof(int));
+}
+
+int write_client_pipe(int client_pipe_fd, const void *buf, size_t n_bytes) {
+  if (write(client_pipe_fd, buf, n_bytes) == -1) {
+    fprintf(stderr, "[ERR]: write failed: %s\n", strerror(errno));
+    return -1;
+  } // TODO: check for 0
+  return 0;
+}

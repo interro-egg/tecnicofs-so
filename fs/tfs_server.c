@@ -129,27 +129,8 @@ int main(int argc, char **argv) {
       break;
     }
     case TFS_OP_CODE_OPEN: {
-      char buffer[MAX_FILE_NAME];
-      int flags, session_id, client;
-      if (read(server_pipe_fd, &session_id, sizeof(int)) == -1) {
-        fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
-        continue;
-      }
-      client = client_pipe_fds[session_id];
-      if (read(server_pipe_fd, buffer, MAX_FILE_NAME * sizeof(char)) == -1) {
-        fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
-        continue;
-      }
-      if (read(server_pipe_fd, &flags, FLAGS_LENGTH * sizeof(char)) == -1) {
-        fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
-        continue;
-      }
-      int fd = tfs_open(buffer, flags);
-      printf("[INFO]: tfs_open(%s, %d) returned %d\n", buffer, flags, fd);
-      if (write(client, &fd, sizeof(int)) == -1) {
-        fprintf(stderr, "[ERR]: write failed: %s\n", strerror(errno));
-        continue;
-      }
+      // TODO: maybe check for errors?
+      dispatch(opcode, session_id, parse_tfs_open, handle_tfs_open);
       break;
     }
     case TFS_OP_CODE_CLOSE: {

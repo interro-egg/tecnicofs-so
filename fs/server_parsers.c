@@ -2,9 +2,16 @@
 #include <errno.h>
 #include <stdio.h>
 
+// TODO: consider just changing this to void
 int parse_tfs_mount(int server_pipe_fd, tfs_session_data_t *data) {
   read_server_pipe(server_pipe_fd, data->client_pipe_path,
                    MAX_PIPE_NAME * sizeof(char));
+  return 0;
+}
+
+int parse_tfs_open(int server_pipe_fd, tfs_session_data_t *data) {
+  read_server_pipe(server_pipe_fd, &data->name, MAX_FILE_NAME * sizeof(char));
+  read_server_pipe(server_pipe_fd, &data->flags, sizeof(int));
   return 0;
 }
 

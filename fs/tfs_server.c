@@ -24,7 +24,7 @@ int dispatch(int opcode, int session_id,
   data->session_id = session_id;
   data->opcode = opcode;
 
-  if (parser(server_pipe_fd, data) == -1) {
+  if (parser != NULL && parser(server_pipe_fd, data) == -1) {
     fprintf(stderr, "[ERR]: parser (opcode=%d) failed\n", opcode);
     return -1;
   }
@@ -96,7 +96,7 @@ int main(int argc, char **argv) {
 
   for (;;) {
     char opcode;
-    ssize_t ret = read(server_pipe_fd, &opcode, sizeof(u_int8_t));
+    ssize_t ret = read(server_pipe_fd, &opcode, sizeof(char));
     if (ret == 0) {
       // ret == 0 signals EOF
       fprintf(stderr, "[INFO]: pipe closed\n"); // FIXME: remove this
@@ -107,11 +107,15 @@ int main(int argc, char **argv) {
       exit(EXIT_FAILURE);
     }
 
-    fprintf(stderr, "[INFO]: reading opcode: %d \n", opcode);
+    int session_id = -1;
+    if (opcode != TFS_OP_CODE_MOUNT) {
+      // TODO: handle error, possibly incorporating into the above if
+      read(server_pipe_fd, &session_id, sizeof(char));
+    }
 
     switch (opcode) {
     case TFS_OP_CODE_MOUNT: {
-      int session_id = take_session();
+      session_id = take_session();
       if (dispatch(opcode, session_id, parse_tfs_mount, handle_tfs_mount) ==
           -1) {
         free_session(session_id);
@@ -119,19 +123,9 @@ int main(int argc, char **argv) {
       break;
     }
     case TFS_OP_CODE_UNMOUNT: {
-      int session_id, client;
-      if (read(server_pipe_fd, &session_id, sizeof(int)) == -1) {
-        fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
-        continue;
-      }
-      client = client_pipe_fds[session_id];
-      if (close(client) == -1) {
-        fprintf(stderr, "[ERR]: close failed: %s\n", strerror(errno));
-        continue;
-      }
-      lock_free_sessions();
-      free_sessions[session_id] = FREE;
-      unlock_free_sessions();
+      // no need to check for errors
+      dispatch(opcode, session_id, NULL, handle_tfs_unmount);
+      free_session(session_id);
       break;
     }
     case TFS_OP_CODE_OPEN: {

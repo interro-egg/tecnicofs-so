@@ -4,7 +4,6 @@
 #include "tfs_server.h"
 
 int parse_tfs_mount(int server_pipe_fd, tfs_session_data_t *data);
-int parse_tfs_unmount(int server_pipe_fd, tfs_session_data_t *data);
 int parse_tfs_open(int server_pipe_fd, tfs_session_data_t *data);
 int parse_tfs_close(int server_pipe_fd, tfs_session_data_t *data);
 int parse_tfs_write(int server_pipe_fd, tfs_session_data_t *data);

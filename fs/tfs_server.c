@@ -7,9 +7,35 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+int server_pipe_fd;
 int client_pipe_fds[MAX_SESSION_COUNT];
 allocation_state_t free_sessions[MAX_SESSION_COUNT] = {FREE};
 pthread_mutex_t free_sessions_lock = PTHREAD_MUTEX_INITIALIZER;
+
+int dispatch(int opcode, int (*parser)(tfs_request_t *req),
+             int (*handler)(tfs_request_t *req)) {
+  tfs_request_t *req = (tfs_request_t *)malloc(sizeof(tfs_request_t));
+  if (req == NULL) {
+    fprintf(stderr, "[ERR]: malloc failed: %s\n", strerror(errno));
+    return -1;
+  }
+
+  req->opcode = opcode;
+
+  if (parser(req) == -1) {
+    fprintf(stderr, "[ERR]: parser (opcode=%d) failed\n", opcode);
+    free(req);
+    return -1;
+  }
+
+  if (handler(req) == -1) {
+    fprintf(stderr, "[ERR]: handler (opcode=%d) failed\n", opcode);
+    free(req);
+    return -1;
+  }
+
+  return 0;
+}
 
 int main(int argc, char **argv) {
 
@@ -35,16 +61,16 @@ int main(int argc, char **argv) {
     exit(EXIT_FAILURE);
   }
 
-  int server =
+  server_pipe_fd =
       open(pipename, O_RDONLY); // blocks until someone is at the other end
-  if (server == -1) {
+  if (server_pipe_fd == -1) {
     fprintf(stderr, "[ERR]: open failed: %s\n", strerror(errno));
     exit(EXIT_FAILURE);
   }
 
   for (;;) {
     char opcode;
-    ssize_t ret = read(server, &opcode, sizeof(u_int8_t));
+    ssize_t ret = read(server_pipe_fd, &opcode, sizeof(u_int8_t));
     if (ret == 0) {
       // ret == 0 signals EOF
       fprintf(stderr, "[INFO]: pipe closed\n"); // FIXME: remove this
@@ -59,43 +85,12 @@ int main(int argc, char **argv) {
 
     switch (opcode) {
     case TFS_OP_CODE_MOUNT: {
-      int session_id, client;
-      char buffer[MAX_PIPE_NAME];
-      if (read(server, buffer, MAX_PIPE_NAME * sizeof(char)) == -1) {
-        fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
-        exit(EXIT_FAILURE);
-      } // TODO: read returns 0 if pipe closed
-      client = open(buffer, O_WRONLY);
-      if (client == -1) {
-        fprintf(stderr, "[ERR]: client open failed: %s\n", strerror(errno));
-        continue;
-      }
-
-      lock_free_sessions();
-      for (int i = 0; i < MAX_SESSION_COUNT; i++) {
-        if (free_sessions[i] == FREE) {
-          free_sessions[i] = TAKEN;
-          client_pipe_fds[i] = client;
-          session_id = i;
-          break;
-        }
-      }
-      unlock_free_sessions();
-
-      if (write(client, &session_id, sizeof(int)) == -1) {
-        fprintf(stderr, "[ERR]: write failed: %s\n", strerror(errno));
-        lock_free_sessions();
-        free_sessions[session_id] = FREE;
-        unlock_free_sessions();
-        close(client);
-        continue;
-      } // TODO: write returns 0 if pipe closed
 
       break;
     }
     case TFS_OP_CODE_UNMOUNT: {
       int session_id, client;
-      if (read(server, &session_id, sizeof(int)) == -1) {
+      if (read(server_pipe_fd, &session_id, sizeof(int)) == -1) {
         fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
         continue;
       }
@@ -112,16 +107,16 @@ int main(int argc, char **argv) {
     case TFS_OP_CODE_OPEN: {
       char buffer[MAX_FILE_NAME];
       int flags, session_id, client;
-      if (read(server, &session_id, sizeof(int)) == -1) {
+      if (read(server_pipe_fd, &session_id, sizeof(int)) == -1) {
         fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
         continue;
       }
       client = client_pipe_fds[session_id];
-      if (read(server, buffer, MAX_FILE_NAME * sizeof(char)) == -1) {
+      if (read(server_pipe_fd, buffer, MAX_FILE_NAME * sizeof(char)) == -1) {
         fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
         continue;
       }
-      if (read(server, &flags, FLAGS_LENGTH * sizeof(char)) == -1) {
+      if (read(server_pipe_fd, &flags, FLAGS_LENGTH * sizeof(char)) == -1) {
         fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
         continue;
       }
@@ -135,12 +130,12 @@ int main(int argc, char **argv) {
     }
     case TFS_OP_CODE_CLOSE: {
       int fd, session_id, client;
-      if (read(server, &session_id, sizeof(int)) == -1) {
+      if (read(server_pipe_fd, &session_id, sizeof(int)) == -1) {
         fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
         continue;
       }
       client = client_pipe_fds[session_id];
-      if (read(server, &fd, FHANDLE_LENGTH * sizeof(char)) == -1) {
+      if (read(server_pipe_fd, &fd, FHANDLE_LENGTH * sizeof(char)) == -1) {
         fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
         continue;
       }
@@ -156,22 +151,22 @@ int main(int argc, char **argv) {
       int fd, session_id, client;
       size_t size;
       ssize_t written;
-      if (read(server, &session_id, sizeof(int)) == -1) {
+      if (read(server_pipe_fd, &session_id, sizeof(int)) == -1) {
         fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
         continue;
       }
       client = client_pipe_fds[session_id];
-      if (read(server, &fd, FHANDLE_LENGTH * sizeof(char)) == -1) {
+      if (read(server_pipe_fd, &fd, FHANDLE_LENGTH * sizeof(char)) == -1) {
         fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
         continue;
       }
       // TODO: check if size > 1024 ?
-      if (read(server, &size, SIZE_LENGTH * sizeof(char)) == -1) {
+      if (read(server_pipe_fd, &size, SIZE_LENGTH * sizeof(char)) == -1) {
         fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
         continue;
       }
       char *to_write = (char *)malloc(size * sizeof(char));
-      if (read(server, to_write, size * sizeof(char)) == -1) {
+      if (read(server_pipe_fd, to_write, size * sizeof(char)) == -1) {
         fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
         continue;
       }
@@ -188,17 +183,17 @@ int main(int argc, char **argv) {
       int fd, session_id, client;
       size_t size;
       ssize_t was_read;
-      if (read(server, &session_id, sizeof(int)) == -1) {
+      if (read(server_pipe_fd, &session_id, sizeof(int)) == -1) {
         fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
         continue;
       }
       client = client_pipe_fds[session_id];
-      if (read(server, &fd, FHANDLE_LENGTH * sizeof(char)) == -1) {
+      if (read(server_pipe_fd, &fd, FHANDLE_LENGTH * sizeof(char)) == -1) {
         fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
         continue;
       }
       // TODO: check if size > 1024 ?
-      if (read(server, &size, SIZE_LENGTH * sizeof(char)) == -1) {
+      if (read(server_pipe_fd, &size, SIZE_LENGTH * sizeof(char)) == -1) {
         fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
         continue;
       }
@@ -218,7 +213,7 @@ int main(int argc, char **argv) {
     }
     case TFS_OP_CODE_SHUTDOWN_AFTER_ALL_CLOSED: {
       int session_id, client, ret;
-      if (read(server, &session_id, sizeof(int)) == -1) {
+      if (read(server_pipe_fd, &session_id, sizeof(int)) == -1) {
         fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
         continue;
       }
@@ -237,7 +232,7 @@ int main(int argc, char **argv) {
     }
   }
 
-  close(server); // no need to check, we are exiting anyway
+  close(server_pipe_fd); // no need to check, we are exiting anyway
   for (int i = 0; i < MAX_SESSION_COUNT; i++) {
     if (free_sessions[i] == TAKEN) {
       close(client_pipe_fds[i]);

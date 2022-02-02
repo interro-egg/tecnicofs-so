@@ -26,16 +26,40 @@ int dispatch(int opcode, int session_id,
 
   if (parser(server_pipe_fd, data) == -1) {
     fprintf(stderr, "[ERR]: parser (opcode=%d) failed\n", opcode);
-    free(data);
     return -1;
   }
 
   if (handler(data) == -1) {
+    // in the future, this probably won't be a parameter and each thread will
+    // pick the respective handler when taking up the task
     fprintf(stderr, "[ERR]: handler (opcode=%d) failed\n", opcode);
-    free(data);
     return -1;
   }
 
+  return 0;
+}
+
+// Takes the first free session, returns session ID or -1 if none are available
+int take_session() {
+  int session_id = -1;
+  lock_free_sessions();
+  for (int i = 0; i < MAX_SESSION_COUNT; i++) {
+    if (free_sessions[i] == FREE) {
+      free_sessions[i] = TAKEN;
+      session_id = i;
+      break;
+    }
+  }
+  unlock_free_sessions();
+  return session_id;
+}
+
+int free_session(int session_id) {
+  if (session_id < 0 || session_id > MAX_SESSION_COUNT)
+    return -1;
+  lock_free_sessions();
+  free_sessions[session_id] = FREE;
+  unlock_free_sessions();
   return 0;
 }
 
@@ -87,7 +111,11 @@ int main(int argc, char **argv) {
 
     switch (opcode) {
     case TFS_OP_CODE_MOUNT: {
-
+      int session_id = take_session();
+      if (dispatch(opcode, session_id, parse_tfs_mount, handle_tfs_mount) ==
+          -1) {
+        free_session(session_id);
+      }
       break;
     }
     case TFS_OP_CODE_UNMOUNT: {

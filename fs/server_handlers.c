@@ -37,20 +37,22 @@ int handle_tfs_close(tfs_session_data_t *data) {
 }
 
 int handle_tfs_write(tfs_session_data_t *data) {
-  int written = tfs_write(data->fhandle, data->buffer, data->len);
+  int written = (int)tfs_write(data->fhandle, data->buffer, data->len);
   free(data->buffer); // TODO: should we check for error?
   return write_client_pipe(data->client_pipe_fd, &written, sizeof(int));
 }
 
 int handle_tfs_read(tfs_session_data_t *data) {
   char *buffer = (char *)malloc(data->len * sizeof(char));
-  int read_bytes = tfs_read(data->fhandle, buffer, data->len);
-  if (write_client_pipe(data->client_pipe_fd, &read_bytes, sizeof(int)) == -1) {
+  ssize_t read_bytes = tfs_read(data->fhandle, buffer, data->len);
+  int ret = (int)read_bytes; // required by spec
+  if (write_client_pipe(data->client_pipe_fd, &ret, sizeof(int)) == -1) {
     free(buffer);
     return -1;
   }
-  if (read_bytes != -1 && write_client_pipe(data->client_pipe_fd, buffer,
-                                            read_bytes * sizeof(char)) == -1) {
+  if (read_bytes != -1 &&
+      write_client_pipe(data->client_pipe_fd, buffer,
+                        (size_t)read_bytes * sizeof(char)) == -1) {
     free(buffer);
     return -1;
   }

@@ -134,22 +134,8 @@ int main(int argc, char **argv) {
       break;
     }
     case TFS_OP_CODE_CLOSE: {
-      int fd, session_id, client;
-      if (read(server_pipe_fd, &session_id, sizeof(int)) == -1) {
-        fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
-        continue;
-      }
-      client = client_pipe_fds[session_id];
-      if (read(server_pipe_fd, &fd, FHANDLE_LENGTH * sizeof(char)) == -1) {
-        fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
-        continue;
-      }
-      int retval = tfs_close(fd);
-      printf("[INFO]: tfs_close returned %d\n", retval);
-      if (write(client, &retval, sizeof(int)) == -1) {
-        fprintf(stderr, "[ERR]: write failed: %s\n", strerror(errno));
-        continue;
-      }
+      // TODO: maybe check for errors?
+      dispatch(opcode, session_id, parse_tfs_close, handle_tfs_close);
       break;
     }
     case TFS_OP_CODE_WRITE: {

@@ -15,6 +15,11 @@ int parse_tfs_open(int server_pipe_fd, tfs_session_data_t *data) {
   return 0;
 }
 
+int parse_tfs_close(int server_pipe_fd, tfs_session_data_t *data) {
+  read_server_pipe(server_pipe_fd, &data->fhandle, sizeof(int));
+  return 0;
+}
+
 void read_server_pipe(int server_pipe_fd, void *buf, size_t n_bytes) {
   if (read(server_pipe_fd, buf, n_bytes) == -1) {
     fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));

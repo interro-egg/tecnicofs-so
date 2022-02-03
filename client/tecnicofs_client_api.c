@@ -169,7 +169,7 @@ ssize_t tfs_read(int fhandle, void *buffer, size_t len) {
     return -1;
   }
   printf("[INFO]: read size is:  %ld\n", size);
-  printf("[INFO]: read content is:  %s\n", buffer);
+  printf("[INFO]: read content is:  %s\n", (char *)buffer);
   return size;
 }
 

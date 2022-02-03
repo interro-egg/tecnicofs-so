@@ -1,11 +1,4 @@
 #include "tecnicofs_client_api.h"
-#include <errno.h>
-#include <fcntl.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/stat.h>
-#include <unistd.h>
 
 int client, server, session_id;
 char pipename[MAX_PIPE_NAME];
@@ -72,17 +65,24 @@ int tfs_unmount() {
     fprintf(stderr, "[ERR]: write failed: %s\n", strerror(errno));
     return -1;
   }
-  if (close(server) == -1) {
-    fprintf(stderr, "[ERR]: server close failed: %s\n", strerror(errno));
+  int ret;
+  if (read(client, &ret, sizeof(int)) == -1) {
+    fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
     return -1;
   }
-  if (unlink(pipename) != 0) {
-    fprintf(stderr, "[ERR]: unlink(%s) failed: %s\n", pipename,
-            strerror(errno));
-    return -1;
+  if (ret != -1) {
+    if (close(server) == -1) {
+      fprintf(stderr, "[ERR]: server close failed: %s\n", strerror(errno));
+      return -1;
+    }
+    if (unlink(pipename) != 0) {
+      fprintf(stderr, "[ERR]: unlink(%s) failed: %s\n", pipename,
+              strerror(errno));
+      return -1;
+    }
   }
   printf("[INFO]: successfully unmounted session id: %d\n", session_id);
-  return 0;
+  return ret;
 }
 
 int tfs_open(char const *name, int flags) {
@@ -164,7 +164,7 @@ ssize_t tfs_read(int fhandle, void *buffer, size_t len) {
     fprintf(stderr, "[ERR]: write failed: %s\n", strerror(errno));
     return -1;
   }
-  if (read(client, &size, sizeof(ssize_t)) == -1) {
+  if (read(client, &size, sizeof(int)) == -1) {
     fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
     return -1;
   }
@@ -176,7 +176,7 @@ ssize_t tfs_read(int fhandle, void *buffer, size_t len) {
     return -1;
   }
   printf("[INFO]: read size is:  %ld\n", size);
-  printf("[INFO]: read content is:  %s\n", buffer);
+  printf("[INFO]: read content is:  %s\n", (char *)buffer);
   return size;
 }
 

@@ -10,7 +10,7 @@ int parse_tfs_mount(int server_pipe_fd, tfs_session_data_t *data) {
 }
 
 int parse_tfs_open(int server_pipe_fd, tfs_session_data_t *data) {
-  read_server_pipe(server_pipe_fd, &data->name, MAX_FILE_NAME * sizeof(char));
+  read_server_pipe(server_pipe_fd, data->name, MAX_FILE_NAME * sizeof(char));
   read_server_pipe(server_pipe_fd, &data->flags, sizeof(int));
   return 0;
 }

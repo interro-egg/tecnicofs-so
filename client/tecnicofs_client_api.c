@@ -65,17 +65,24 @@ int tfs_unmount() {
     fprintf(stderr, "[ERR]: write failed: %s\n", strerror(errno));
     return -1;
   }
-  if (close(server) == -1) {
-    fprintf(stderr, "[ERR]: server close failed: %s\n", strerror(errno));
+  int ret;
+  if (read(client, &ret, sizeof(int)) == -1) {
+    fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
     return -1;
   }
-  if (unlink(pipename) != 0) {
-    fprintf(stderr, "[ERR]: unlink(%s) failed: %s\n", pipename,
-            strerror(errno));
-    return -1;
+  if (ret != -1) {
+    if (close(server) == -1) {
+      fprintf(stderr, "[ERR]: server close failed: %s\n", strerror(errno));
+      return -1;
+    }
+    if (unlink(pipename) != 0) {
+      fprintf(stderr, "[ERR]: unlink(%s) failed: %s\n", pipename,
+              strerror(errno));
+      return -1;
+    }
   }
   printf("[INFO]: successfully unmounted session id: %d\n", session_id);
-  return 0;
+  return ret;
 }
 
 int tfs_open(char const *name, int flags) {

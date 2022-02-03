@@ -166,6 +166,7 @@ int main(int argc, char **argv) {
       exit(EXIT_SUCCESS);
     }
     default: {
+      // can´t recover 💀 (unkown request length)
       fprintf(stderr, "[ERR]: unknown opcode %d\n", opcode);
       exit(EXIT_FAILURE);
     }

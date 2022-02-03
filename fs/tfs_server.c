@@ -125,8 +125,7 @@ int main(int argc, char **argv) {
 
     int session_id = -1;
     if (opcode != TFS_OP_CODE_MOUNT) {
-      // TODO: handle error, possibly incorporating into the above if
-      read(server_pipe_fd, &session_id, sizeof(int));
+      read_server_pipe(&session_id, sizeof(int));
     }
 
     switch (opcode) {

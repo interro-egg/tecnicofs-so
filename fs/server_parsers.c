@@ -21,7 +21,7 @@ int parse_tfs_close(int server_pipe_fd, tfs_session_data_t *data) {
 
 int parse_tfs_write(int server_pipe_fd, tfs_session_data_t *data) {
   read_server_pipe(server_pipe_fd, &data->fhandle, sizeof(int));
-  read_server_pipe(server_pipe_fd, &data->len, sizeof(char));
+  read_server_pipe(server_pipe_fd, &data->len, sizeof(size_t));
   data->buffer = (char *)malloc(data->len * sizeof(char));
   if (data->buffer == NULL) {
     fprintf(stderr, "[ERR]: malloc failed: %s\n", strerror(errno));
@@ -33,7 +33,7 @@ int parse_tfs_write(int server_pipe_fd, tfs_session_data_t *data) {
 
 int parse_tfs_read(int server_pipe_fd, tfs_session_data_t *data) {
   read_server_pipe(server_pipe_fd, &data->fhandle, sizeof(int));
-  read_server_pipe(server_pipe_fd, &data->len, sizeof(char));
+  read_server_pipe(server_pipe_fd, &data->len, sizeof(size_t));
   return 0;
 }
 

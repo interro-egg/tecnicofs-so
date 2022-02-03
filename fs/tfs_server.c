@@ -157,8 +157,8 @@ int main(int argc, char **argv) {
       exit(EXIT_SUCCESS);
     }
     default: {
-      // FIXME:
-      printf("not ok\n");
+      fprintf(stderr, "[ERR]: unknown opcode %d\n", opcode);
+      exit(EXIT_FAILURE);
     }
     }
   }

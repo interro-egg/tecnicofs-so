@@ -136,27 +136,22 @@ int main(int argc, char **argv) {
       break;
     }
     case TFS_OP_CODE_OPEN: {
-      // TODO: maybe check for errors?
       dispatch(opcode, session_id, parse_tfs_open, handle_tfs_open);
       break;
     }
     case TFS_OP_CODE_CLOSE: {
-      // TODO: maybe check for errors?
       dispatch(opcode, session_id, parse_tfs_close, handle_tfs_close);
       break;
     }
     case TFS_OP_CODE_WRITE: {
-      // TODO: maybe check for errors?
       dispatch(opcode, session_id, parse_tfs_write, handle_tfs_write);
       break;
     }
     case TFS_OP_CODE_READ: {
-      // TODO: maybe check for errors?
       dispatch(opcode, session_id, parse_tfs_read, handle_tfs_read);
       break;
     }
     case TFS_OP_CODE_SHUTDOWN_AFTER_ALL_CLOSED: {
-      // TODO: maybe check for errors?
       dispatch(opcode, session_id, NULL, handle_tfs_shutdown_after_all_closed);
       fprintf(stderr, "[INFO]: server shutting down\n");
       exit(EXIT_SUCCESS);

@@ -19,6 +19,10 @@ int handle_tfs_mount(tfs_session_data_t *data) {
 }
 
 int handle_tfs_unmount(tfs_session_data_t *data) {
+  int ret = 0;
+  if (write_client_pipe(data->client_pipe_fd, &ret, sizeof(int)) == -1) {
+    return -1;
+  }
   return close(data->client_pipe_fd);
 }
 

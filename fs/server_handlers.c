@@ -42,6 +42,22 @@ int handle_tfs_write(tfs_session_data_t *data) {
   return write_client_pipe(data->client_pipe_fd, &written, sizeof(ssize_t));
 }
 
+int handle_tfs_read(tfs_session_data_t *data) {
+  char *buffer = (char *)malloc(data->len * sizeof(char));
+  int read_bytes = tfs_read(data->fhandle, buffer, data->len);
+  if (write_client_pipe(data->client_pipe_fd, &read_bytes, sizeof(int)) == -1) {
+    free(buffer);
+    return -1;
+  }
+  if (read_bytes != -1 && write_client_pipe(data->client_pipe_fd, buffer,
+                                            read_bytes * sizeof(char)) == -1) {
+    free(buffer);
+    return -1;
+  }
+  free(buffer);
+  return 0;
+}
+
 int write_client_pipe(int client_pipe_fd, const void *buf, size_t n_bytes) {
   if (write(client_pipe_fd, buf, n_bytes) == -1) {
     fprintf(stderr, "[ERR]: write failed: %s\n", strerror(errno));

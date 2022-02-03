@@ -15,6 +15,7 @@ int dispatch(int opcode, int session_id,
   lock_free_sessions();
   if (free_sessions[session_id] != TAKEN) {
     unlock_free_sessions();
+    fprintf(stderr, "[ERR]: session_id %d is not taken\n", session_id);
     return -1;
   }
   unlock_free_sessions();
@@ -110,7 +111,7 @@ int main(int argc, char **argv) {
     int session_id = -1;
     if (opcode != TFS_OP_CODE_MOUNT) {
       // TODO: handle error, possibly incorporating into the above if
-      read(server_pipe_fd, &session_id, sizeof(char));
+      read(server_pipe_fd, &session_id, sizeof(int));
     }
 
     switch (opcode) {
@@ -155,6 +156,7 @@ int main(int argc, char **argv) {
       exit(EXIT_SUCCESS);
     }
     default: {
+      // FIXME:
       printf("not ok\n");
     }
     }

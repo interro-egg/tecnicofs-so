@@ -2,6 +2,7 @@
 #include "server_handlers.h"
 #include "server_parsers.h"
 
+char *server_pipe_name;
 int server_pipe_fd;
 int client_pipe_fds[MAX_SESSION_COUNT];
 tfs_session_data_t session_data[MAX_SESSION_COUNT];
@@ -9,7 +10,7 @@ allocation_state_t free_sessions[MAX_SESSION_COUNT] = {FREE};
 pthread_mutex_t free_sessions_lock = PTHREAD_MUTEX_INITIALIZER;
 
 int dispatch(int opcode, int session_id,
-             int (*parser)(int server_pipe_fd, tfs_session_data_t *data),
+             int (*parser)(tfs_session_data_t *data),
              int (*handler)(tfs_session_data_t *data)) {
 
   lock_free_sessions();
@@ -25,7 +26,7 @@ int dispatch(int opcode, int session_id,
   data->session_id = session_id;
   data->opcode = opcode;
 
-  if (parser != NULL && parser(server_pipe_fd, data) == -1) {
+  if (parser != NULL && parser(data) == -1) {
     fprintf(stderr, "[ERR]: parser (opcode=%d) failed\n", opcode);
     return -1;
   }
@@ -64,6 +65,26 @@ int free_session(int session_id) {
   return 0;
 }
 
+ssize_t read_server_pipe(void *buf, size_t n_bytes) {
+  ssize_t ret = read(server_pipe_fd, buf, n_bytes);
+  if (ret == 0) {
+    // ret == 0 signals EOF
+    close(server_pipe_fd);
+    fprintf(stderr, "[INFO]: no clients\n");
+    server_pipe_fd = open(server_pipe_name, O_RDONLY);
+    if (server_pipe_fd == -1) {
+      fprintf(stderr, "[ERR]: open failed: %s\n", strerror(errno));
+      exit(EXIT_FAILURE);
+    }
+  } else if (ret == -1) {
+    // ret == -1 signals error
+    fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
+    exit(EXIT_FAILURE);
+  }
+
+  return ret;
+}
+
 int main(int argc, char **argv) {
 
   if (argc < 2) {
@@ -71,25 +92,25 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  char *pipename = argv[1];
+  server_pipe_name = argv[1];
   tfs_init();
-  printf("Starting TecnicoFS server with pipe called %s\n", pipename);
+  printf("Starting TecnicoFS server with pipe called %s\n", server_pipe_name);
 
   // remove pipe if it already exists
-  if (unlink(pipename) != 0 && errno != ENOENT) {
-    fprintf(stderr, "[ERR]: unlink(%s) failed: %s\n", pipename,
+  if (unlink(server_pipe_name) != 0 && errno != ENOENT) {
+    fprintf(stderr, "[ERR]: unlink(%s) failed: %s\n", server_pipe_name,
             strerror(errno));
     exit(EXIT_FAILURE);
   }
 
   // create pipe
-  if (mkfifo(pipename, 0640) != 0) {
+  if (mkfifo(server_pipe_name, 0640) != 0) {
     fprintf(stderr, "[ERR]: mkfifo failed: %s\n", strerror(errno));
     exit(EXIT_FAILURE);
   }
 
-  server_pipe_fd =
-      open(pipename, O_RDONLY); // blocks until someone is at the other end
+  server_pipe_fd = open(server_pipe_name,
+                        O_RDONLY); // blocks until someone is at the other end
   if (server_pipe_fd == -1) {
     fprintf(stderr, "[ERR]: open failed: %s\n", strerror(errno));
     exit(EXIT_FAILURE);
@@ -97,21 +118,9 @@ int main(int argc, char **argv) {
 
   for (;;) {
     char opcode;
-    ssize_t ret = read(server_pipe_fd, &opcode, sizeof(char));
-    if (ret == 0) {
-      // ret == 0 signals EOF
-      close(server_pipe_fd);
-      fprintf(stderr, "[INFO]: no clients\n");
-      server_pipe_fd = open(pipename, O_RDONLY);
-      if (server_pipe_fd == -1) {
-        fprintf(stderr, "[ERR]: open failed: %s\n", strerror(errno));
-        exit(EXIT_FAILURE);
-      }
+    if (read_server_pipe(&opcode, sizeof(char)) == 0) {
+      // EOF, pipe re-opened
       continue;
-    } else if (ret == -1) {
-      // ret == -1 signals error
-      fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
-      exit(EXIT_FAILURE);
     }
 
     int session_id = -1;

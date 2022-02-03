@@ -3,12 +3,10 @@
 
 #include "tfs_server.h"
 
-int parse_tfs_mount(int server_pipe_fd, tfs_session_data_t *data);
-int parse_tfs_open(int server_pipe_fd, tfs_session_data_t *data);
-int parse_tfs_close(int server_pipe_fd, tfs_session_data_t *data);
-int parse_tfs_write(int server_pipe_fd, tfs_session_data_t *data);
-int parse_tfs_read(int server_pipe_fd, tfs_session_data_t *data);
-
-void read_server_pipe(int server_pipe_fd, void *buf, size_t n_bytes);
+int parse_tfs_mount(tfs_session_data_t *data);
+int parse_tfs_open(tfs_session_data_t *data);
+int parse_tfs_close(tfs_session_data_t *data);
+int parse_tfs_write(tfs_session_data_t *data);
+int parse_tfs_read(tfs_session_data_t *data);
 
 #endif /* SERVER_PARSERS_H */

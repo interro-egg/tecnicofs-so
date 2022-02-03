@@ -28,9 +28,10 @@ typedef struct {
 } tfs_session_data_t;
 
 int dispatch(int opcode, int session_id,
-             int (*parser)(int server_pipe_fd, tfs_session_data_t *data),
+             int (*parser)(tfs_session_data_t *data),
              int (*handler)(tfs_session_data_t *data));
 void lock_free_sessions();
 void unlock_free_sessions();
+ssize_t read_server_pipe(void *buf, size_t n_bytes);
 
 #endif /* TFS_SERVER_H */

@@ -139,35 +139,8 @@ int main(int argc, char **argv) {
       break;
     }
     case TFS_OP_CODE_WRITE: {
-      int fd, session_id, client;
-      size_t size;
-      ssize_t written;
-      if (read(server_pipe_fd, &session_id, sizeof(int)) == -1) {
-        fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
-        continue;
-      }
-      client = client_pipe_fds[session_id];
-      if (read(server_pipe_fd, &fd, FHANDLE_LENGTH * sizeof(char)) == -1) {
-        fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
-        continue;
-      }
-      // TODO: check if size > 1024 ?
-      if (read(server_pipe_fd, &size, SIZE_LENGTH * sizeof(char)) == -1) {
-        fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
-        continue;
-      }
-      char *to_write = (char *)malloc(size * sizeof(char));
-      if (read(server_pipe_fd, to_write, size * sizeof(char)) == -1) {
-        fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
-        continue;
-      }
-      written = tfs_write(fd, to_write, size);
-      printf("[INFO]: written %zd B\n", written);
-      if (write(client, &written, sizeof(ssize_t)) == -1) {
-        fprintf(stderr, "[ERR]: write failed: %s\n", strerror(errno));
-        continue;
-      }
-      free(to_write);
+      // TODO: maybe check for errors?
+      dispatch(opcode, session_id, parse_tfs_write, handle_tfs_write);
       break;
     }
     case TFS_OP_CODE_READ: {

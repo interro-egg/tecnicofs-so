@@ -2,7 +2,6 @@
 #include <errno.h>
 #include <stdio.h>
 
-// TODO: consider just changing this to void
 int parse_tfs_mount(int server_pipe_fd, tfs_session_data_t *data) {
   read_server_pipe(server_pipe_fd, data->client_pipe_path,
                    MAX_PIPE_NAME * sizeof(char));
@@ -17,6 +16,18 @@ int parse_tfs_open(int server_pipe_fd, tfs_session_data_t *data) {
 
 int parse_tfs_close(int server_pipe_fd, tfs_session_data_t *data) {
   read_server_pipe(server_pipe_fd, &data->fhandle, sizeof(int));
+  return 0;
+}
+
+int parse_tfs_write(int server_pipe_fd, tfs_session_data_t *data) {
+  read_server_pipe(server_pipe_fd, &data->fhandle, sizeof(int));
+  read_server_pipe(server_pipe_fd, &data->len, sizeof(char));
+  data->buffer = (char *)malloc(data->len * sizeof(char));
+  if (data->buffer == NULL) {
+    fprintf(stderr, "[ERR]: malloc failed: %s\n", strerror(errno));
+    return -1;
+  }
+  read_server_pipe(server_pipe_fd, data->buffer, data->len * sizeof(char));
   return 0;
 }
 

@@ -149,19 +149,10 @@ int main(int argc, char **argv) {
       break;
     }
     case TFS_OP_CODE_SHUTDOWN_AFTER_ALL_CLOSED: {
-      int session_id, client, ret;
-      if (read(server_pipe_fd, &session_id, sizeof(int)) == -1) {
-        fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
-        continue;
-      }
-      client = client_pipe_fds[session_id];
-      ret = tfs_destroy_after_all_closed();
-      printf("[INFO]: tfs_shutdown_after_all_closed returned %d\n", ret);
-      if (write(client, &ret, sizeof(int)) == -1) {
-        fprintf(stderr, "[ERR]: write failed: %s\n", strerror(errno));
-        continue;
-      }
-      break;
+      // TODO: maybe check for errors?
+      dispatch(opcode, session_id, NULL, handle_tfs_shutdown_after_all_closed);
+      fprintf(stderr, "[INFO]: server shutting down\n");
+      exit(EXIT_SUCCESS);
     }
     default: {
       printf("not ok\n");

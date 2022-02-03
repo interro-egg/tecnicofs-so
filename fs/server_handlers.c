@@ -58,6 +58,11 @@ int handle_tfs_read(tfs_session_data_t *data) {
   return 0;
 }
 
+int handle_tfs_shutdown_after_all_closed(tfs_session_data_t *data) {
+  int ret = tfs_destroy_after_all_closed();
+  return write_client_pipe(data->client_pipe_fd, &ret, sizeof(int));
+}
+
 int write_client_pipe(int client_pipe_fd, const void *buf, size_t n_bytes) {
   if (write(client_pipe_fd, buf, n_bytes) == -1) {
     fprintf(stderr, "[ERR]: write failed: %s\n", strerror(errno));

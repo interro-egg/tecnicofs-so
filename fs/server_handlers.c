@@ -37,9 +37,9 @@ int handle_tfs_close(tfs_session_data_t *data) {
 }
 
 int handle_tfs_write(tfs_session_data_t *data) {
-  ssize_t written = tfs_write(data->fhandle, data->buffer, data->len);
+  int written = tfs_write(data->fhandle, data->buffer, data->len);
   free(data->buffer); // TODO: should we check for error?
-  return write_client_pipe(data->client_pipe_fd, &written, sizeof(ssize_t));
+  return write_client_pipe(data->client_pipe_fd, &written, sizeof(int));
 }
 
 int handle_tfs_read(tfs_session_data_t *data) {

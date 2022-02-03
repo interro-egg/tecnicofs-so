@@ -100,8 +100,14 @@ int main(int argc, char **argv) {
     ssize_t ret = read(server_pipe_fd, &opcode, sizeof(char));
     if (ret == 0) {
       // ret == 0 signals EOF
-      fprintf(stderr, "[INFO]: pipe closed\n"); // FIXME: remove this
-      return 0;
+      close(server_pipe_fd);
+      fprintf(stderr, "[INFO]: no clients\n");
+      server_pipe_fd = open(pipename, O_RDONLY);
+      if (server_pipe_fd == -1) {
+        fprintf(stderr, "[ERR]: open failed: %s\n", strerror(errno));
+        exit(EXIT_FAILURE);
+      }
+      continue;
     } else if (ret == -1) {
       // ret == -1 signals error
       fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));

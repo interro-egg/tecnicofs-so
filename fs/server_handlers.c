@@ -33,7 +33,7 @@ int handle_tfs_close(tfs_session_data_t *data) {
 
 int handle_tfs_write(tfs_session_data_t *data) {
   int written = (int)tfs_write(data->fhandle, data->buffer, data->len);
-  free(data->buffer); // TODO: should we check for error?
+  free(data->buffer);
   return write_client_pipe(data->client_pipe_fd, &written, sizeof(int));
 }
 
@@ -61,9 +61,9 @@ int handle_tfs_shutdown_after_all_closed(tfs_session_data_t *data) {
 }
 
 int write_client_pipe(int client_pipe_fd, const void *buf, size_t n_bytes) {
-  if (write(client_pipe_fd, buf, n_bytes) == -1) {
+  if (write(client_pipe_fd, buf, n_bytes) != n_bytes) {
     fprintf(stderr, "[ERR]: write failed: %s\n", strerror(errno));
     return -1;
-  } // TODO: check for 0
+  }
   return 0;
 }

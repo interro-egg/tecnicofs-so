@@ -140,7 +140,7 @@ int main(int argc, char **argv) {
     case TFS_OP_CODE_UNMOUNT: {
       // no need to check for errors
       dispatch(opcode, session_id, NULL, handle_tfs_unmount);
-      free_session(session_id); // FIXME: does this need to be in the thread?
+      free_session(session_id);
       break;
     }
     case TFS_OP_CODE_OPEN: {

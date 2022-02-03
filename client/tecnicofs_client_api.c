@@ -164,7 +164,7 @@ ssize_t tfs_read(int fhandle, void *buffer, size_t len) {
     fprintf(stderr, "[ERR]: write failed: %s\n", strerror(errno));
     return -1;
   }
-  if (read(client, &size, sizeof(ssize_t)) == -1) {
+  if (read(client, &size, sizeof(int)) == -1) {
     fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
     return -1;
   }

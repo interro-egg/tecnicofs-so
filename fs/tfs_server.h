@@ -40,7 +40,7 @@ int dispatch(int opcode, int session_id,
 void *worker_thread(void *arg);
 int take_session();
 int free_session(int session_id);
-ssize_t read_server_pipe(void *buf, size_t n_bytes);
+size_t read_server_pipe(void *buf, size_t n_bytes);
 void lock_mutex(pthread_mutex_t *mutex);
 void unlock_mutex(pthread_mutex_t *mutex);
 

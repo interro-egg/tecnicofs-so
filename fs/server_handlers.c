@@ -66,14 +66,14 @@ int handle_tfs_shutdown_after_all_closed(tfs_session_data_t *data) {
 }
 
 int write_client_pipe(int client_pipe_fd, const void *buf, size_t n_bytes) {
-  ssize_t written = 0;
+  size_t written = 0;
   while (written < n_bytes) {
     ssize_t ret = write(client_pipe_fd, buf + written, n_bytes - written);
     if (ret == -1) {
       fprintf(stderr, "[ERR]: write failed: %s\n", strerror(errno));
       return -1;
     }
-    written += ret;
+    written += (size_t)ret;
   }
   return 0;
 }

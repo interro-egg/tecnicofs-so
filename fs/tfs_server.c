@@ -94,24 +94,29 @@ int free_session(int session_id) {
   return 0;
 }
 
-ssize_t read_server_pipe(void *buf, size_t n_bytes) {
-  ssize_t ret = read(server_pipe_fd, buf, n_bytes);
-  if (ret == 0) {
-    // ret == 0 signals EOF
-    close(server_pipe_fd);
-    fprintf(stderr, "[INFO]: no clients\n");
-    server_pipe_fd = open(server_pipe_name, O_RDONLY);
-    if (server_pipe_fd == -1) {
-      fprintf(stderr, "[ERR]: open failed: %s\n", strerror(errno));
+size_t read_server_pipe(void *buf, size_t n_bytes) {
+  size_t n_read = 0;
+  while (n_read < n_bytes) {
+    ssize_t ret = read(server_pipe_fd, buf + n_read, n_bytes - n_read);
+    if (ret == 0) {
+      // ret == 0 signals EOF
+      close(server_pipe_fd);
+      fprintf(stderr, "[INFO]: no clients\n");
+      server_pipe_fd = open(server_pipe_name, O_RDONLY);
+      if (server_pipe_fd == -1) {
+        fprintf(stderr, "[ERR]: open failed: %s\n", strerror(errno));
+        exit(EXIT_FAILURE);
+      }
+    } else if (ret == -1) {
+      // ret == -1 signals error
+      fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
       exit(EXIT_FAILURE);
+    } else {
+      n_read += (size_t)ret;
     }
-  } else if (ret == -1) {
-    // ret == -1 signals error
-    fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
-    exit(EXIT_FAILURE);
   }
 
-  return ret;
+  return n_read;
 }
 
 int main(int argc, char **argv) {

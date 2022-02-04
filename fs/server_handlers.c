@@ -57,7 +57,12 @@ int handle_tfs_read(tfs_session_data_t *data) {
 
 int handle_tfs_shutdown_after_all_closed(tfs_session_data_t *data) {
   int ret = tfs_destroy_after_all_closed();
-  return write_client_pipe(data->client_pipe_fd, &ret, sizeof(int));
+  if (ret == -1 ||
+      write_client_pipe(data->client_pipe_fd, &ret, sizeof(int)) == -1) {
+    return -1;
+  }
+  fprintf(stderr, "[INFO]: server shutting down\n");
+  exit(EXIT_SUCCESS);
 }
 
 int write_client_pipe(int client_pipe_fd, const void *buf, size_t n_bytes) {

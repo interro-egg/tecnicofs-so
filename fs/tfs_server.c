@@ -212,8 +212,7 @@ int main(int argc, char **argv) {
     }
     case TFS_OP_CODE_SHUTDOWN_AFTER_ALL_CLOSED: {
       dispatch(opcode, session_id, NULL, handle_tfs_shutdown_after_all_closed);
-      fprintf(stderr, "[INFO]: server shutting down\n");
-      exit(EXIT_SUCCESS);
+      break;
     }
     default: {
       // can't recover 💀 (unknown request length)

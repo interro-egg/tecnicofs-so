@@ -13,29 +13,56 @@ int dispatch(int opcode, int session_id,
              int (*parser)(tfs_session_data_t *data),
              int (*handler)(tfs_session_data_t *data)) {
 
-  lock_free_sessions();
+  lock_mutex(&free_sessions_lock);
   if (free_sessions[session_id] != TAKEN) {
-    unlock_free_sessions();
+    unlock_mutex(&free_sessions_lock);
     fprintf(stderr, "[ERR]: session_id %d is not taken\n", session_id);
     return -1;
   }
-  unlock_free_sessions();
+  unlock_mutex(&free_sessions_lock);
 
   tfs_session_data_t *data = &session_data[session_id];
 
+  lock_mutex(&data->lock);
   data->session_id = session_id;
   data->opcode = opcode;
+  data->handler = handler; // TODO: how to get return value? do we need it?
 
   if (parser != NULL && parser(data) == -1) {
     fprintf(stderr, "[ERR]: parser (opcode=%d) failed\n", opcode);
     return -1;
   }
 
-  if (handler(data) == -1) {
-    // in the future, this probably won't be a parameter and each thread will
-    // pick the respective handler when taking up the task
-    fprintf(stderr, "[ERR]: handler (opcode=%d) failed\n", opcode);
-    return -1;
+  data->request_pending = true;
+  if (pthread_cond_signal(&data->cond) != 0) {
+    fprintf(stderr, "[ERR]: pthread_cond_signal failed\n");
+    exit(EXIT_FAILURE);
+  }
+  unlock_mutex(&data->lock);
+
+  return 0;
+}
+
+void *worker_thread(void *arg) {
+  int session_id = *(int *)arg;
+  tfs_session_data_t *data = &session_data[session_id];
+
+  while (true) {
+    // wait for a request
+    lock_mutex(&data->lock);
+    while (!data->request_pending) {
+      if (pthread_cond_wait(&data->cond, &data->lock) != 0) {
+        fprintf(stderr, "[ERR]: pthread_cond_wait failed: %s\n",
+                strerror(errno));
+        exit(EXIT_FAILURE);
+      }
+    }
+
+    // handle the request
+    data->handler(data);
+    data->request_pending = false;
+
+    unlock_mutex(&data->lock);
   }
 
   return 0;
@@ -44,7 +71,7 @@ int dispatch(int opcode, int session_id,
 // Takes the first free session, returns session ID or -1 if none are available
 int take_session() {
   int session_id = -1;
-  lock_free_sessions();
+  lock_mutex(&free_sessions_lock);
   for (int i = 0; i < MAX_SESSION_COUNT; i++) {
     if (free_sessions[i] == FREE) {
       free_sessions[i] = TAKEN;
@@ -52,16 +79,16 @@ int take_session() {
       break;
     }
   }
-  unlock_free_sessions();
+  unlock_mutex(&free_sessions_lock);
   return session_id;
 }
 
 int free_session(int session_id) {
   if (session_id < 0 || session_id > MAX_SESSION_COUNT)
     return -1;
-  lock_free_sessions();
+  lock_mutex(&free_sessions_lock);
   free_sessions[session_id] = FREE;
-  unlock_free_sessions();
+  unlock_mutex(&free_sessions_lock);
   return 0;
 }
 
@@ -94,6 +121,25 @@ int main(int argc, char **argv) {
 
   server_pipe_name = argv[1];
   tfs_init();
+  for (int i = 0; i < MAX_SESSION_COUNT; i++) {
+    session_data[i].request_pending = false;
+    if (pthread_mutex_init(&session_data[i].lock, NULL) != 0) {
+      fprintf(stderr, "[ERR]: mutex init for session %d failed: %s\n", i,
+              strerror(errno));
+      exit(EXIT_FAILURE);
+    }
+    if (pthread_cond_init(&session_data[i].cond, NULL) != 0) {
+      fprintf(stderr, "[ERR]: cond init for session %d failed: %s\n", i,
+              strerror(errno));
+      exit(EXIT_FAILURE);
+    }
+    if (pthread_create(&session_data[i].worker_thread, NULL, worker_thread,
+                       &session_data[i].session_id) != 0) {
+      fprintf(stderr, "[ERR]: pthread_create for session %d failed: %s\n", i,
+              strerror(errno));
+    }
+  }
+
   printf("Starting TecnicoFS server with pipe called %s\n", server_pipe_name);
 
   // remove pipe if it already exists
@@ -165,7 +211,7 @@ int main(int argc, char **argv) {
       exit(EXIT_SUCCESS);
     }
     default: {
-      // can´t recover 💀 (unknown request length)
+      // can't recover 💀 (unknown request length)
       fprintf(stderr, "[ERR]: unknown opcode %d\n", opcode);
       exit(EXIT_FAILURE);
     }
@@ -173,28 +219,31 @@ int main(int argc, char **argv) {
   }
 
   close(server_pipe_fd); // no need to check, we are exiting anyway
-  lock_free_sessions();
+  lock_mutex(&free_sessions_lock);
   for (int i = 0; i < MAX_SESSION_COUNT; i++) {
     if (free_sessions[i] == TAKEN) {
       close(session_data[i].client_pipe_fd);
     }
+    pthread_mutex_destroy(&session_data[i].lock);
+    pthread_cond_destroy(&session_data[i].cond);
   }
-  unlock_free_sessions();
+  unlock_mutex(&free_sessions_lock);
   pthread_mutex_destroy(&free_sessions_lock);
 
   return 0;
 }
 
-void lock_free_sessions() {
-  if (pthread_mutex_lock(&free_sessions_lock) != 0) {
+void lock_mutex(pthread_mutex_t *mutex) {
+  if (pthread_mutex_lock(mutex) != 0) {
     fprintf(stderr, "[ERR]: pthread_mutex_lock failed: %s\n", strerror(errno));
     exit(EXIT_FAILURE);
   }
 }
 
-void unlock_free_sessions() {
-  if (pthread_mutex_unlock(&free_sessions_lock) != 0) {
-    fprintf(stderr, "[ERR]: pthread_mutex_lock failed: %s\n", strerror(errno));
+void unlock_mutex(pthread_mutex_t *mutex) {
+  if (pthread_mutex_unlock(mutex) != 0) {
+    fprintf(stderr, "[ERR]: pthread_mutex_unlock failed: %s\n",
+            strerror(errno));
     exit(EXIT_FAILURE);
   }
 }

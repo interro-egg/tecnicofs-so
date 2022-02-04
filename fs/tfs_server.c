@@ -59,7 +59,9 @@ void *worker_thread(void *arg) {
     }
 
     // handle the request
-    data->handler(data);
+    if (data->handler(data) == -1) {
+      fprintf(stderr, "[ERR]: handler (opcode=%d) failed\n", data->opcode);
+    }
     data->request_pending = false;
 
     unlock_mutex(&data->lock);

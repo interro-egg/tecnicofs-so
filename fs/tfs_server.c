@@ -122,6 +122,7 @@ int main(int argc, char **argv) {
   }
 
   server_pipe_name = argv[1];
+  signal(SIGPIPE, SIG_IGN);
   tfs_init();
   for (int i = 0; i < MAX_SESSION_COUNT; i++) {
     session_data[i].request_pending = false;

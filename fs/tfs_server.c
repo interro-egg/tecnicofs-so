@@ -228,6 +228,7 @@ int main(int argc, char **argv) {
   }
 
   close(server_pipe_fd); // no need to check, we are exiting anyway
+  unlink(server_pipe_name);
   lock_mutex(&free_sessions_lock);
   for (int i = 0; i < MAX_SESSION_COUNT; i++) {
     if (free_sessions[i] == TAKEN) {

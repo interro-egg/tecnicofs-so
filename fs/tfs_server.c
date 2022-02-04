@@ -86,7 +86,7 @@ int take_session() {
 }
 
 int free_session(int session_id) {
-  if (session_id < 0 || session_id > MAX_SESSION_COUNT)
+  if (session_id < 0 || session_id >= MAX_SESSION_COUNT)
     return -1;
   lock_mutex(&free_sessions_lock);
   free_sessions[session_id] = FREE;

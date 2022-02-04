@@ -26,7 +26,7 @@ int dispatch(int opcode, int session_id,
   lock_mutex(&data->lock);
   data->session_id = session_id;
   data->opcode = opcode;
-  data->handler = handler; // TODO: how to get return value? do we need it?
+  data->handler = handler;
 
   if (parser != NULL && parser(data) == -1) {
     fprintf(stderr, "[ERR]: parser (opcode=%d) failed\n", opcode);

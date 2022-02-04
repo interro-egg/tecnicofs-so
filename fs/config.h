@@ -10,7 +10,7 @@
 #define MAX_OPEN_FILES (20)
 #define MAX_FILE_NAME (40)
 
-#define MAX_SESSION_COUNT (100) // S
+#define MAX_SESSION_COUNT (1000) // S
 
 #define DELAY (5000)
 

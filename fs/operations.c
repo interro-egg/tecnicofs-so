@@ -124,8 +124,9 @@ int tfs_open(char const *name, int flags) {
     return -1;
   if (pthread_mutex_lock(&single_global_lock) != 0)
     return -1;
-  open_file_table_increase_size();
   int ret = _tfs_open_unsynchronized(name, flags);
+  if (ret != -1)
+    open_file_table_increase_size();
   if (pthread_mutex_unlock(&single_global_lock) != 0)
     return -1;
 

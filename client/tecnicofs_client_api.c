@@ -45,12 +45,12 @@ int tfs_mount(char const *client_pipe_path, char const *server_pipe_path) {
   }
   client = rx;
 
-  if (read(client, &session_id, sizeof(int)) == -1) {
+  if (read(client, &session_id, sizeof(int)) <= 0) {
     fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
     close(server); // already returning error, no need to check
     close(client);
     return -1;
-  } // TODO: if read returns 0, pipe closed
+  }
 
   printf("[INFO]: session id: %d\n", session_id);
   return 0;

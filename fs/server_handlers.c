@@ -32,9 +32,9 @@ int handle_tfs_close(tfs_session_data_t *data) {
 }
 
 int handle_tfs_write(tfs_session_data_t *data) {
-  int written = (int)tfs_write(data->fhandle, data->buffer, data->len);
+  ssize_t written = tfs_write(data->fhandle, data->buffer, data->len);
   free(data->buffer);
-  return write_client_pipe(data->client_pipe_fd, &written, sizeof(int));
+  return write_client_pipe(data->client_pipe_fd, &written, sizeof(ssize_t));
 }
 
 int handle_tfs_read(tfs_session_data_t *data) {

@@ -123,6 +123,8 @@ int main(int argc, char **argv) {
   tfs_init();
   for (int i = 0; i < MAX_SESSION_COUNT; i++) {
     session_data[i].request_pending = false;
+    session_data[i].session_id = i;
+
     if (pthread_mutex_init(&session_data[i].lock, NULL) != 0) {
       fprintf(stderr, "[ERR]: mutex init for session %d failed: %s\n", i,
               strerror(errno));

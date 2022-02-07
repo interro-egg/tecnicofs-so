@@ -195,3 +195,14 @@ int tfs_shutdown_after_all_closed() {
   }
   return ret;
 }
+
+int tfs_ping() {
+  char buffer[1 + SESSION_ID_LENGTH];
+  buffer[0] = TFS_OP_CODE_PING;
+  memcpy(buffer + 1, &session_id, SESSION_ID_LENGTH);
+  if (write(server, buffer, (1 + SESSION_ID_LENGTH) * sizeof(char)) == -1) {
+    fprintf(stderr, "[ERR]: write failed: %s\n", strerror(errno));
+    return -1;
+  }
+  return 0;
+}

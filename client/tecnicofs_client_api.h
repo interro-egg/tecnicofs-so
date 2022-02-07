@@ -85,4 +85,9 @@ ssize_t tfs_read(int fhandle, void *buffer, size_t len);
  */
 int tfs_shutdown_after_all_closed();
 
+/*
+ * Pings the server.
+ */
+int tfs_ping();
+
 #endif /* CLIENT_API_H */

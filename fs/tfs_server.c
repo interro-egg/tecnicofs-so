@@ -219,6 +219,10 @@ int main(int argc, char **argv) {
       dispatch(opcode, session_id, NULL, handle_tfs_shutdown_after_all_closed);
       break;
     }
+    case TFS_OP_CODE_PING: {
+      dispatch(opcode, session_id, NULL, handle_tfs_ping);
+      break;
+    }
     default: {
       // can't recover 💀 (unknown request length)
       fprintf(stderr, "[ERR]: unknown opcode %d\n", opcode);

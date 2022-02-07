@@ -67,7 +67,8 @@ int handle_tfs_shutdown_after_all_closed(tfs_session_data_t *data) {
 
 int handle_tfs_ping(tfs_session_data_t *data) {
   printf("Pong!\n");
-  return 0;
+  int ret = 0;
+  return write_client_pipe(data->client_pipe_fd, &ret, sizeof(int));
 }
 
 int write_client_pipe(int client_pipe_fd, const void *buf, size_t n_bytes) {
